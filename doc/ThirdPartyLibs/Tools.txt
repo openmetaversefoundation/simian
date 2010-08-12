@@ -1,0 +1,16 @@
+SOURCE
+---------------------------------------
+
+Using Tools.dll binary from "Compiler tools in C# (cstools)" version 4.7 from 
+http://cis.uws.ac.uk/malcolm.crowe/CSTools.zip
+
+LICENSE
+---------------------------------------
+
+The code is used with permission by the author:
+
+"There is no problem with using the code in any way you like, as long as 
+somewhere you say that that is what you have done (in the source for example). 
+And of course we disclaim all responsibility for any resulting damage...
+Best wishes
+Malcolm Crowe"

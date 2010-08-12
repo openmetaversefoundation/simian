@@ -1,0 +1,380 @@
+﻿/*
+ * Copyright (c) Open Metaverse Foundation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.Composition;
+using System.Threading;
+using log4net;
+using OpenMetaverse;
+using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
+
+namespace Simian.Protocols.Linden.Packets
+{
+    [SceneModule("Appearance")]
+    public class Appearance : ISceneModule
+    {
+        const string AVATAR_APPEARANCE = "AvatarAppearance";
+
+        /// <summary>Magic UUID for combining with an agent ID to create an event ID for appearances</summary>
+        private static readonly UUID APPEARANCE_EVENT_ID = new UUID("7e661f48-4e10-4657-b3ab-6e69073db48b");
+        private static readonly Primitive.TextureEntry DEFAULT_TEXTURE_ENTRY = new Primitive.TextureEntry(OpenMetaverse.AppearanceManager.DEFAULT_AVATAR_TEXTURE);
+        private static readonly byte[] DEFAULT_VISUAL_PARAMS = new byte[218];
+        private static readonly byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
+
+        private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+
+        private IScene m_scene;
+        private IUserClient m_userClient;
+        private IInventoryClient m_inventoryClient;
+        private LLUDP m_udp;
+
+        public void Start(IScene scene)
+        {
+            m_scene = scene;
+
+            m_userClient = m_scene.Simian.GetAppModule<IUserClient>();
+            m_inventoryClient = m_scene.Simian.GetAppModule<IInventoryClient>();
+
+            m_udp = m_scene.GetSceneModule<LLUDP>();
+            if (m_udp != null)
+            {
+                m_udp.AddPacketHandler(PacketType.AgentSetAppearance, AgentSetAppearanceHandler);
+                m_udp.AddPacketHandler(PacketType.AgentWearablesRequest, AgentWearablesRequestHandler);
+                m_udp.AddPacketHandler(PacketType.AgentIsNowWearing, AgentIsNowWearingHandler);
+                m_udp.AddPacketHandler(PacketType.AgentCachedTexture, AgentCachedTextureHandler);
+
+                m_scene.AddInterestListHandler(AVATAR_APPEARANCE, new InterestListEventHandler
+                    { PriorityCallback = AvatarAppearancePrioritizer, SendCallback = SendAvatarAppearancePackets });
+
+                m_scene.OnPresenceAdd += PresenceAddHandler;
+            }
+        }
+
+        public void Stop()
+        {
+            if (m_udp != null)
+            {
+                m_udp.RemovePacketHandler(PacketType.AgentSetAppearance, AgentSetAppearanceHandler);
+                m_udp.RemovePacketHandler(PacketType.AgentWearablesRequest, AgentWearablesRequestHandler);
+                m_udp.RemovePacketHandler(PacketType.AgentIsNowWearing, AgentIsNowWearingHandler);
+                m_udp.RemovePacketHandler(PacketType.AgentCachedTexture, AgentCachedTextureHandler);
+
+                m_scene.OnPresenceAdd -= PresenceAddHandler;
+            }
+        }
+
+        private void AgentSetAppearanceHandler(Packet packet, LLAgent agent)
+        {
+            AgentSetAppearancePacket set = (AgentSetAppearancePacket)packet;
+            UpdateFlags updateFlags = 0;
+            LLUpdateFlags llUpdateFlags = 0;
+
+            m_log.Debug("Updating avatar appearance with " + set.VisualParam.Length + " visual params, texture=" +
+                (set.ObjectData.TextureEntry.Length > 1 ? "yes" : "no"));
+
+            //TODO: Store this for cached bake responses
+            for (int i = 0; i < set.WearableData.Length; i++)
+            {
+                //AvatarTextureIndex index = (AvatarTextureIndex)set.WearableData[i].TextureIndex;
+                //UUID cacheID = set.WearableData[i].CacheID;
+
+                //m_log.DebugFormat("WearableData: {0} is now {1}", index, cacheID);
+            }
+
+            // Create a TextureEntry
+            if (set.ObjectData.TextureEntry.Length > 1)
+            {
+                agent.TextureEntry = new Primitive.TextureEntry(set.ObjectData.TextureEntry, 0,
+                    set.ObjectData.TextureEntry.Length);
+
+                llUpdateFlags |= LLUpdateFlags.Textures;
+
+                #region Bake Cache Check
+
+                for (int i = 0; i < BAKE_INDICES.Length; i++)
+                {
+                    int j = BAKE_INDICES[i];
+                    Primitive.TextureEntryFace face = agent.TextureEntry.FaceTextures[j];
+
+                    if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
+                    {
+                        m_log.Debug("Baked texture " + (AvatarTextureIndex)j + " set to " + face.TextureID);
+                    }
+                }
+
+                #endregion Bake Cache Check
+            }
+
+            if (agent.Scale != set.AgentData.Size)
+            {
+                // This will be modified in UpdateHeight() if VisualParams are also sent
+                agent.Scale = set.AgentData.Size;
+                updateFlags |= UpdateFlags.Scale;
+            }
+
+            // Create a block of VisualParams
+            if (set.VisualParam.Length > 1)
+            {
+                byte[] visualParams = new byte[set.VisualParam.Length];
+                for (int i = 0; i < set.VisualParam.Length; i++)
+                    visualParams[i] = set.VisualParam[i].ParamValue;
+
+                agent.VisualParams = visualParams;
+                agent.UpdateHeight();
+
+                m_scene.CreateInterestListEvent(new InterestListEvent
+                (
+                    UUID.Combine(agent.ID, APPEARANCE_EVENT_ID),
+                    AVATAR_APPEARANCE,
+                    agent.ScenePosition,
+                    agent.Scale,
+                    agent
+                ));
+            }
+
+            if (updateFlags != 0 || llUpdateFlags != 0)
+                m_scene.EntityAddOrUpdate(this, agent, updateFlags, (uint)llUpdateFlags);
+        }
+
+        private void AgentWearablesRequestHandler(Packet packet, LLAgent agent)
+        {
+            // This beast of a function tries to fetch the user profile data from the user service and get the "wearables"
+            // inventory items associated with this account. AssetIDs for each inventory item are fetched from the inventory
+            // service, and the whole mess is converted into an AgentWearablesUpdate packet
+
+            // Note: This Wearables should be in the Variable Data field "ExtraData" in the User record
+
+            AgentWearablesUpdatePacket update = new AgentWearablesUpdatePacket();
+            update.AgentData.AgentID = agent.ID;
+
+            User user;
+
+            if (m_userClient != null && m_inventoryClient != null && m_userClient.TryGetUser(agent.ID, out user))
+            {
+                OSDMap wearablesMap = user.GetField("wearables") as OSDMap;
+
+                if (wearablesMap != null)
+                {
+                    List<UUID> requestIDs = new List<UUID>();
+                    Dictionary<UUID, WearableType> wornItems = new Dictionary<UUID,WearableType>();
+                    Dictionary<WearableType, Tuple<UUID, UUID>> wornItemsFinal = new Dictionary<WearableType, Tuple<UUID, UUID>>();
+
+                    foreach (KeyValuePair<string, OSD> kvp in wearablesMap)
+                    {
+                        WearableType type = (WearableType)Int32.Parse(kvp.Key);
+                        UUID itemID = kvp.Value.AsUUID();
+
+                        if (itemID != UUID.Zero)
+                        {
+                            requestIDs.Add(itemID);
+                            wornItems[itemID] = type;
+                        }
+                    }
+
+                    IDictionary<UUID, UUID> itemsToAssetIDs;
+                    if (m_inventoryClient.TryGetAssetIDs(agent.ID, requestIDs.ToArray(), out itemsToAssetIDs))
+                    {
+                        foreach (KeyValuePair<UUID, UUID> kvp in itemsToAssetIDs)
+                        {
+                            WearableType type;
+                            if (wornItems.TryGetValue(kvp.Key, out type))
+                                wornItemsFinal[type] = new Tuple<UUID, UUID>(kvp.Key, kvp.Value);
+                        }
+
+                        update.WearableData = new AgentWearablesUpdatePacket.WearableDataBlock[wornItemsFinal.Count];
+
+                        int i = 0;
+                        foreach (KeyValuePair<WearableType, Tuple<UUID, UUID>> kvp in wornItemsFinal)
+                        {
+                            update.WearableData[i] = new AgentWearablesUpdatePacket.WearableDataBlock();
+                            update.WearableData[i].WearableType = (byte)kvp.Key;
+                            update.WearableData[i].ItemID = kvp.Value.Item1;
+                            update.WearableData[i].AssetID = kvp.Value.Item2;
+                            ++i;
+                        }
+                    }
+                    else
+                    {
+                        m_log.Warn("Failed to fetch wearable assetIDs for " + agent.Name);
+                    }
+                }
+                else
+                {
+                    m_log.Warn("User record does not contain a wearables map in ExtraData, Appearance will not be set");
+                }
+            }
+
+            if (update.WearableData == null)
+            {
+                update.WearableData = new AgentWearablesUpdatePacket.WearableDataBlock[0];
+            }
+
+            m_log.DebugFormat("Sending info about {0} wearables to {1}", update.WearableData.Length, agent.Name);
+
+            update.AgentData.SerialNum = (uint)System.Threading.Interlocked.Increment(ref agent.CurrentWearablesSerialNum);
+            m_udp.SendPacket(agent, update, ThrottleCategory.Asset, false);
+        }
+
+        private void AgentIsNowWearingHandler(Packet packet, LLAgent agent)
+        {
+            AgentIsNowWearingPacket wearing = (AgentIsNowWearingPacket)packet;
+
+            OSDMap wearableMap = new OSDMap();
+            int count = 0;
+
+            for (int i = 0; i < wearing.WearableData.Length; i++)
+            {
+                AgentIsNowWearingPacket.WearableDataBlock block = wearing.WearableData[i];
+                wearableMap[block.WearableType.ToString()] = OSD.FromUUID(block.ItemID);
+
+                if (block.ItemID != UUID.Zero)
+                    ++count;
+            }
+
+            m_log.Debug("Updating agent wearables, new count: " + count);
+
+            if (m_userClient != null)
+            {
+                m_userClient.UpdateUserField(agent.ID, "wearables", wearableMap);
+            }
+        }
+
+        private void AgentCachedTextureHandler(Packet packet, LLAgent agent)
+        {
+            AgentCachedTexturePacket cached = (AgentCachedTexturePacket)packet;
+
+            AgentCachedTextureResponsePacket response = new AgentCachedTextureResponsePacket();
+            response.Header.Zerocoded = true;
+
+            response.AgentData.AgentID = agent.ID;
+            response.AgentData.SerialNum = cached.AgentData.SerialNum;
+
+            response.WearableData = new AgentCachedTextureResponsePacket.WearableDataBlock[cached.WearableData.Length];
+
+            // TODO: Respond back with actual cache entries if we have them
+            for (int i = 0; i < cached.WearableData.Length; i++)
+            {
+                response.WearableData[i] = new AgentCachedTextureResponsePacket.WearableDataBlock();
+                response.WearableData[i].TextureIndex = cached.WearableData[i].TextureIndex;
+                response.WearableData[i].TextureID = UUID.Zero;
+                response.WearableData[i].HostName = Utils.EmptyBytes;
+            }
+
+            m_log.DebugFormat("Sending a cached texture response with {0}/{1} cache hits, SerialNum={2}",
+                0, cached.WearableData.Length, cached.AgentData.SerialNum);
+
+            m_udp.SendPacket(agent, response, ThrottleCategory.Task, false);
+        }
+
+        private void PresenceAddHandler(object sender, PresenceArgs e)
+        {
+            m_scene.ForEachPresence(
+                delegate(IScenePresence presence)
+                {
+                    InterestListEvent eventData = new InterestListEvent
+                    (
+                        UUID.Combine(presence.ID, APPEARANCE_EVENT_ID),
+                        AVATAR_APPEARANCE,
+                        presence.ScenePosition,
+                        presence.Scale,
+                        presence
+                    );
+
+                    m_scene.CreateInterestListEventFor(e.Presence, eventData);
+                }
+            );
+        }
+
+        private double? AvatarAppearancePrioritizer(InterestListEvent eventData, IScenePresence presence)
+        {
+            if (eventData.State != presence)
+                return InterestListEventHandler.DefaultPrioritizer(eventData, presence).Value + 1.0; // Add one so the ObjectUpdate for this avatar has a higher priority
+            else
+                return null; // Don't send AvatarAppearance packets to the agent controlling the avatar
+        }
+
+        private void SendAvatarAppearancePackets(QueuedInterestListEvent[] eventDatas, IScenePresence presence)
+        {
+            if (!(presence is LLAgent) || presence.InterestList == null)
+                return;
+            LLAgent agent = (LLAgent)presence;
+
+            for (int i = 0; i < eventDatas.Length; i++)
+            {
+                IScenePresence curPresence = (IScenePresence)eventDatas[i].Event.State;
+                if (curPresence == presence)
+                {
+                    m_log.Warn("Attempted to send an AvatarAppearance packet to the controlling agent");
+                    continue;
+                }
+
+                AvatarAppearancePacket appearance = new AvatarAppearancePacket();
+                appearance.Sender.ID = curPresence.ID;
+                appearance.Sender.IsTrial = false;
+
+                Primitive.TextureEntry textureEntry = null;
+                byte[] visualParams = null;
+
+                if (curPresence is LLAgent)
+                {
+                    LLAgent curAgent = (LLAgent)curPresence;
+
+                    // If this agent has not set VisualParams yet, skip it
+                    if (curAgent.VisualParams == null)
+                        continue;
+
+                    textureEntry = curAgent.TextureEntry;
+                    visualParams = curAgent.VisualParams;
+                }
+
+                if (textureEntry == null)
+                {
+                    // Use a default texture entry for this avatar
+                    textureEntry = DEFAULT_TEXTURE_ENTRY;
+                }
+
+                if (visualParams == null)
+                {
+                    // Use default visual params for this avatar
+                    visualParams = DEFAULT_VISUAL_PARAMS;
+                }
+
+                appearance.ObjectData.TextureEntry = textureEntry.GetBytes();
+                appearance.VisualParam = new AvatarAppearancePacket.VisualParamBlock[visualParams.Length];
+                for (int j = 0; j < visualParams.Length; j++)
+                {
+                    appearance.VisualParam[j] = new AvatarAppearancePacket.VisualParamBlock();
+                    appearance.VisualParam[j].ParamValue = visualParams[j];
+                }
+
+                m_udp.SendPacket(agent, appearance, ThrottleCategory.Task, false);
+            }
+        }
+    }
+}

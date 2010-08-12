@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Prebuild xmlns="http://dnpb.sourceforge.net/schemas/prebuild-1.9.xsd" version="1.9">
+  <Solution name="Simian" activeConfig="Debug" version="0.0.1">
+    <Configuration name="Debug">
+      <Options>
+        <CompilerDefines>TRACE;DEBUG</CompilerDefines>
+        <OptimizeCode>false</OptimizeCode>
+        <CheckUnderflowOverflow>false</CheckUnderflowOverflow>
+        <AllowUnsafe>true</AllowUnsafe>
+        <WarningLevel>4</WarningLevel>
+        <WarningsAsErrors>false</WarningsAsErrors>
+        <SuppressWarnings></SuppressWarnings>
+        <OutputPath>../bin/Debug</OutputPath>
+        <DebugInformation>true</DebugInformation>
+        <IncrementalBuild>true</IncrementalBuild>
+        <NoStdLib>false</NoStdLib>
+      </Options>
+    </Configuration>
+    <Configuration name="Release">
+      <Options>
+        <CompilerDefines></CompilerDefines>
+        <OptimizeCode>true</OptimizeCode>
+        <CheckUnderflowOverflow>false</CheckUnderflowOverflow>
+        <AllowUnsafe>true</AllowUnsafe>
+        <AllowUnsafe>true</AllowUnsafe>
+        <WarningLevel>4</WarningLevel>
+        <WarningsAsErrors>false</WarningsAsErrors>
+        <SuppressWarnings></SuppressWarnings>
+        <OutputPath>../bin/Release</OutputPath>
+        <DebugInformation>false</DebugInformation>
+        <IncrementalBuild>true</IncrementalBuild>
+        <NoStdLib>false</NoStdLib>
+      </Options>
+    </Configuration>
+    
+    <!-- Simian -->
+
+    <Project name="Simian" path="Simian" type="Exe" rootNamespace="Simian" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="System.Xml"/>
+      <Reference name="HttpServer" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="XMLRPC" path="../lib/" localCopy="true"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+        <Match path="Config" pattern="*.*" recurse="true" buildAction="Content" copyToOutput="Always"/>
+      </Files>
+    </Project>
+    
+    <!-- Connectors -->
+    
+    <Project name="Simian.Connectors.Standalone" path="Simian.Connectors.Standalone" type="Library" rootNamespace="Simian.Connectors.Standalone" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Connectors.Standalone.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="CSJ2K" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+        <Match path="DefaultAssets" pattern="*.*" recurse="true" buildAction="Content" copyToOutput="PreserveNewest"/>
+      </Files>
+    </Project>
+    
+    <!-- Physics -->
+    
+    <Project name="Simian.Physics.Simple" path="Simian.Physics.Simple" type="Library" rootNamespace="Simian.Physics.Simple" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Physics.Simple.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <Project name="Simian.Physics.BulletSim" path="Simian.Physics.BulletSim" type="Library" rootNamespace="Simian.Physics.BulletSim" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+          <AllowUnsafe>true</AllowUnsafe>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <AllowUnsafe>true</AllowUnsafe>
+          <XmlDocFile>Simian.Physics.BulletSim.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+        <Match pattern="*.dll" recurse="false" buildAction="Content" copyToOutput="Always"/>
+      </Files>
+    </Project>
+    
+    <!-- Scripting -->
+    
+    <Project name="Simian.Scripting.Linden" path="Simian.Scripting.LindenApi" type="Library" rootNamespace="Simian.Scripting.Linden" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Scripting.Linden.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="SmartThreadPoolMono" path="../lib/" localCopy="true"/>
+      <Reference name="Tools" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <!-- Protocols -->
+    
+    <Project name="Simian.Protocols.Linden" path="Simian.Protocols.Linden" type="Library" rootNamespace="Simian.Protocols.Linden" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Protocols.Linden.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="CSJ2K" path="../lib/" localCopy="true"/>
+      <Reference name="HttpServer" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="PrimMesher" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <Project name="Simian.Protocols.LindenLogin" path="Simian.Protocols.LindenLogin" type="Library" rootNamespace="Simian.Protocols.LindenLogin" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Protocols.LindenLogin.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Web"/>
+      <Reference name="System.Xml"/>
+      <Reference name="HttpServer" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="XMLRPC" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <!-- Scenes -->
+    
+    <Project name="Simian.Scenes.LLScene" path="Simian.Scenes.LLScene" type="Library" rootNamespace="Simian.Scenes.LLScene" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+          <AllowUnsafe>true</AllowUnsafe>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <AllowUnsafe>true</AllowUnsafe>
+          <XmlDocFile>Simian.Scenes.LLScene.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="HttpServer" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <!-- Addons -->
+    
+    <Project name="Simian.Addons.IRCServer" path="Simian.Addons.IRCServer" type="Library" rootNamespace="Simian.Addons.IRCServer" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Addons.IRCServer.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <!-- Tests -->
+    
+    <Project name="Tests.Simian" path="Tests.Simian" type="Library" rootNamespace="Tests.Simian" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Tests.Simian.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="nunit.framework" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Connectors.Remote"/>
+      <Reference name="Simian.Scripting.Linden"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <Project name="Tests.Simian.Performance" path="Tests.Simian.Performance" type="Library" rootNamespace="Tests.Simian.Performance" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Tests.Simian.Performance.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="NTime.Framework" path="../lib/NTime" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Tests.Simian"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+
+  </Solution>
+</Prebuild>
+
+
