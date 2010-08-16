@@ -44,6 +44,7 @@ namespace Simian.Protocols.Linden
 
         private IScene m_scene;
         private IHttpServer m_httpServer;
+        private IUserClient m_userClient;
         private LLUDP m_lludp;
 
         public void Start(IScene scene)
@@ -54,6 +55,13 @@ namespace Simian.Protocols.Linden
             if (m_httpServer == null)
             {
                 m_log.Warn("RezAvatar requires an IHttpServer");
+                return;
+            }
+
+            m_userClient = m_scene.Simian.GetAppModule<IUserClient>();
+            if (m_userClient == null)
+            {
+                m_log.Warn("RezAvatar requires an IUserClient");
                 return;
             }
 
@@ -91,39 +99,46 @@ namespace Simian.Protocols.Linden
                 return;
             }
 
+            UUID userID = requestMap["agent_id"].AsUUID();
+            UUID sessionID = requestMap["session_id"].AsUUID();
+            bool childAgent = requestMap["child"].AsBoolean();
             Vector3 startPosition = requestMap["position"].AsVector3();
             Vector3 velocity = requestMap["velocity"].AsVector3();
-            Vector3 lookAt = Vector3.UnitX;
-            bool childAgent;
+            Vector3 lookAt = requestMap["look_at"].AsVector3();
 
-            User user = BuildUserFromRezAvatarRequest(requestMap, out childAgent);
             OSDMap responseMap = new OSDMap();
 
-            if (user != null)
+            UserSession session;
+            if (m_userClient.TryGetSession(sessionID, out session))
             {
+                session.CurrentSceneID = m_scene.ID;
+                session.CurrentPosition = startPosition;
+                session.CurrentLookAt = lookAt;
+
                 if (!childAgent)
                 {
                     // Set the agent velocity in case this is a child->root upgrade (border cross)
                     IScenePresence presence;
-                    if (m_scene.TryGetPresence(user.ID, out presence) && presence is IPhysicalPresence)
+                    if (m_scene.TryGetPresence(session.User.ID, out presence) && presence is IPhysicalPresence)
                         ((IPhysicalPresence)presence).Velocity = velocity;
 
-                    RezRootAgent(user, startPosition, lookAt, ref responseMap);
+                    RezRootAgent(session, startPosition, lookAt, ref responseMap);
                 }
                 else
                 {
-                    RezChildAgent(user, startPosition, lookAt, ref responseMap);
+                    RezChildAgent(session, startPosition, lookAt, ref responseMap);
                 }
             }
             else
             {
-                responseMap["message"] = OSD.FromString("Invalid or incomplete request");
+                m_log.Error("Received a rez_avatar/request for agent " + userID + " with missing sessionID " + sessionID);
+                responseMap["message"] = OSD.FromString("Session does not exist");
             }
 
             WebUtil.SendJSONResponse(response, responseMap);
         }
 
-        private void RezRootAgent(User user, Vector3 startPosition, Vector3 lookAt, ref OSDMap responseMap)
+        private void RezRootAgent(UserSession session, Vector3 startPosition, Vector3 lookAt, ref OSDMap responseMap)
         {
             Uri seedCapability;
 
@@ -134,56 +149,54 @@ namespace Simian.Protocols.Linden
                 startPosition.Z = 0f;
             }
 
-            if (m_scene.CanPresenceEnter(user.ID, ref startPosition, ref lookAt))
+            if (m_scene.CanPresenceEnter(session.User.ID, ref startPosition, ref lookAt))
             {
-                user.LastPosition = m_scene.MinPosition + new Vector3d(startPosition);
-                user.LastLookAt = lookAt;
+                session.User.LastSceneID = m_scene.ID;
+                session.User.LastPosition = startPosition;
+                session.User.LastLookAt = lookAt;
 
-                int circuitCode = user.GetField("circuit_code").AsInteger();
-
-                if (m_lludp.EnableCircuit(circuitCode, user, startPosition, lookAt, false, out seedCapability))
+                if (m_lludp.EnableCircuit(session, startPosition, lookAt, false, out seedCapability))
                 {
-                    m_log.Info(m_scene.Name + ": rez_avatar/request enabled circuit " + circuitCode + " for root agent " + user.Name + " with seed cap " + seedCapability);
-                    FillOutRezAgentResponse(user, seedCapability, startPosition, lookAt, ref responseMap);
+                    m_log.Info(m_scene.Name + ": rez_avatar/request enabled circuit " + session.GetField("CircuitCode").AsInteger() + " for root agent " + session.User.Name + " with seed cap " + seedCapability);
+                    FillOutRezAgentResponse(session.User, seedCapability, startPosition, lookAt, ref responseMap);
                 }
                 else
                 {
-                    m_log.Debug("Unable to enable root agent circuit for " + user.Name);
+                    m_log.Debug("Unable to enable root agent circuit for " + session.User.Name);
                     responseMap["message"] = OSD.FromString("Failed to enable root circuit");
                 }
             }
             else
             {
-                m_log.Warn("Denied rez_avatar/request, user=" + user);
+                m_log.Warn("Denied rez_avatar/request, user=" + session.User);
                 responseMap["message"] = OSD.FromString("Access denied");
             }
         }
 
-        private void RezChildAgent(User user, Vector3 startPosition, Vector3 lookAt, ref OSDMap responseMap)
+        private void RezChildAgent(UserSession session, Vector3 startPosition, Vector3 lookAt, ref OSDMap responseMap)
         {
-            if (m_scene.CanPresenceSee(user.ID))
+            if (m_scene.CanPresenceSee(session.User.ID))
             {
                 Uri seedCapability;
 
-                user.LastPosition = m_scene.MinPosition + new Vector3d(startPosition);
-                user.LastLookAt = lookAt;
+                session.User.LastSceneID = m_scene.ID;
+                session.User.LastPosition = startPosition;
+                session.User.LastLookAt = lookAt;
 
-                int circuitCode = user.GetField("circuit_code").AsInteger();
-
-                if (m_lludp.EnableCircuit(circuitCode, user, startPosition, lookAt, true, out seedCapability))
+                if (m_lludp.EnableCircuit(session, startPosition, lookAt, true, out seedCapability))
                 {
-                    m_log.Info("rez_avatar/request enabled circuit " + circuitCode + " for child agent " + user.Name + " in " + m_scene.Name);
-                    FillOutRezAgentResponse(user, seedCapability, startPosition, lookAt, ref responseMap);
+                    m_log.Info("rez_avatar/request enabled circuit " + session.GetField("CircuitCode").AsInteger() + " for child agent " + session.User.Name + " in " + m_scene.Name);
+                    FillOutRezAgentResponse(session.User, seedCapability, startPosition, lookAt, ref responseMap);
                 }
                 else
                 {
-                    m_log.Debug("Unable to enable child agent circuit for " + user.Name);
+                    m_log.Debug("Unable to enable child agent circuit for " + session.User.Name);
                     responseMap["message"] = OSD.FromString("Failed to enable child circuit");
                 }
             }
             else
             {
-                m_log.Warn("Denied rez_avatar/request, user=" + user);
+                m_log.Warn("Denied rez_avatar/request, user=" + session.User);
                 responseMap["message"] = OSD.FromString("Access denied");
             }
         }
@@ -206,27 +219,6 @@ namespace Simian.Protocols.Linden
             responseMap["region_id"] = OSD.FromUUID(m_scene.ID);
             responseMap["region_x"] = OSD.FromInteger(regionX);
             responseMap["region_y"] = OSD.FromInteger(regionY);
-        }
-
-        private User BuildUserFromRezAvatarRequest(OSDMap request, out bool childAgent)
-        {
-            childAgent = request["child"].AsBoolean();
-
-            if (request == null)
-                return null;
-
-            User user = new User();
-            user.ID = request["agent_id"].AsUUID();
-            user.Name = (request["first_name"].AsString() + ' ' + request["last_name"].AsString()).Trim();
-            user.SessionID = request["session_id"].AsUUID();
-            user.SecureSessionID = request["secure_session_id"].AsUUID();
-            user.SetField("circuit_code", request["circuit_code"]);
-            user.AccessLevel = (byte)request["access_level"].AsInteger();
-
-            if (user.ID != UUID.Zero && !String.IsNullOrEmpty(user.Name) && user.GetField("circuit_code").AsInteger() != 0)
-                return user;
-            else
-                return null;
         }
 
         private void GetRegionXY(Vector3d position, out uint regionX, out uint regionY)

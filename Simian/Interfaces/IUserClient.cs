@@ -26,46 +26,40 @@
  */
 
 using System;
+using System.Collections.Generic;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 
 namespace Simian
 {
     /// <summary>
-    /// Represents a user account for this world. This class holds account and 
-    /// presence details only, it does not store any authorization credentials
+    /// Represents a user account for this world. This class holds account 
+    /// details only, it does not store any authorization credentials or 
+    /// presence information
     /// </summary>
-    /// <remarks>This class holds both user account information and current
-    /// presence information for that account</remarks>
     public class User
     {
-        private OSDMap m_data = new OSDMap();
+        private OSDMap m_data;
+
+        #region Common User Data
 
         /// <summary>UUID of this user account</summary>
         public UUID ID
         {
-            get { return m_data["id"].AsUUID(); }
-            set { m_data["id"] = OSD.FromUUID(value); }
-        }
-        /// <summary>Current SessionID if the user is logged in, otherwise
-        /// UUID.Zero</summary>
-        public UUID SessionID
-        {
-            get { return m_data["session_id"].AsUUID(); }
-            set { m_data["session_id"] = OSD.FromUUID(value); }
-        }
-        /// <summary>Current SecureSessionID if the user is logged in, otherwise
-        /// UUID.Zero</summary>
-        public UUID SecureSessionID
-        {
-            get { return m_data["secure_session_id"].AsUUID(); }
-            set { m_data["secure_session_id"] = OSD.FromUUID(value); }
+            get { return m_data["UserID"].AsUUID(); }
+            set { m_data["UserID"] = OSD.FromUUID(value); }
         }
         /// <summary>Full user name</summary>
         public string Name
         {
-            get { return m_data["name"].AsString(); }
-            set { m_data["name"] = OSD.FromString(value); }
+            get { return m_data["Name"].AsString(); }
+            set { m_data["Name"] = OSD.FromString(value); }
+        }
+        /// <summary>User e-mail address</summary>
+        public string Email
+        {
+            get { return m_data["Email"].AsString(); }
+            set { m_data["Email"] = OSD.FromString(value); }
         }
         /// <summary>Access level of the user in the current world, represented
         /// as a 0-255 value. 200 and above is considered an administrator, and
@@ -73,54 +67,62 @@ namespace Simian
         /// account</summary>
         public byte AccessLevel
         {
-            get { return (byte)m_data["access_level"].AsInteger(); }
-            set { m_data["access_level"] = OSD.FromInteger(value); }
+            get { return (byte)m_data["AccessLevel"].AsInteger(); }
+            set { m_data["AccessLevel"] = OSD.FromInteger(value); }
         }
         /// <summary>Date and time of the last successful login</summary>
         public DateTime LastLogin
         {
-            get { return m_data["last_login"].AsDate(); }
-            set { m_data["last_login"] = OSD.FromDate(value); }
+            get { return m_data["LastLoginDate"].AsDate(); }
+            set { m_data["LastLoginDate"] = OSD.FromDate(value); }
         }
-        /// <summary>The home scene selected by this user, if null (UUID.Zero)
-        /// HomePosition will be in global coordinates. If not null HomePosition
-        /// will be in scene local coordinates</summary>
-        public UUID HomeLocation
+        /// <summary>UUID of the home region</summary>
+        public UUID HomeSceneID
         {
-            get { return m_data["home_location"].AsUUID(); }
-            set { m_data["home_location"] = OSD.FromUUID(value); }
+            get { return m_data["HomeSceneID"].AsUUID(); }
+            set { m_data["HomeSceneID"] = OSD.FromUUID(value); }
         }
-        /// <summary>Home position</summary>
-        public Vector3d HomePosition
+        /// <summary>Home position, relative to the home scene</summary>
+        public Vector3 HomePosition
         {
-            get { return m_data["home_position"].AsVector3d(); }
-            set { m_data["home_position"] = OSD.FromVector3d(value); }
+            get { return m_data["HomePosition"].AsVector3(); }
+            set { m_data["HomePosition"] = OSD.FromVector3(value); }
         }
         /// <summary>Normalized looking direction vector for the home position</summary>
         public Vector3 HomeLookAt
         {
-            get { return m_data["home_look_at"].AsVector3(); }
-            set { m_data["home_look_at"] = OSD.FromVector3(value); }
+            get { return m_data["HomeLookAt"].AsVector3(); }
+            set { m_data["HomeLookAt"] = OSD.FromVector3(value); }
         }
-        /// <summary>The last scene this user was in, if null (UUID.Zero)
-        /// LastPosition will be in global coordinates. If not null LastPosition
-        /// will be in scene local coordinates</summary>
-        public UUID LastLocation
+        /// <summary>UUID of the last region</summary>
+        public UUID LastSceneID
         {
-            get { return m_data["last_location"].AsUUID(); }
-            set { m_data["last_location"] = OSD.FromUUID(value); }
+            get { return m_data["LastSceneID"].AsUUID(); }
+            set { m_data["LastSceneID"] = OSD.FromUUID(value); }
         }
-        /// <summary>Last position this user was reported at</summary>
-        public Vector3d LastPosition
+        /// <summary>Last scene-relative position this user was reported at</summary>
+        public Vector3 LastPosition
         {
-            get { return m_data["last_position"].AsVector3d(); }
-            set { m_data["last_position"] = OSD.FromVector3d(value); }
+            get { return m_data["LastPosition"].AsVector3(); }
+            set { m_data["LastPosition"] = OSD.FromVector3(value); }
         }
         /// <summary>Normalized looking direction vector for the last position</summary>
         public Vector3 LastLookAt
         {
-            get { return m_data["last_look_at"].AsVector3(); }
-            set { m_data["last_look_at"] = OSD.FromVector3(value); }
+            get { return m_data["LastLookAt"].AsVector3(); }
+            set { m_data["LastLookAt"] = OSD.FromVector3(value); }
+        }
+
+        #endregion Common User Data
+
+        public User()
+        {
+            m_data = new OSDMap();
+        }
+
+        public User(OSDMap user)
+        {
+            m_data = user;
         }
 
         public OSD GetField(string fieldName)
@@ -143,6 +145,33 @@ namespace Simian
             User user = new User();
             user.m_data = map;
             return user;
+        }
+    }
+
+    public class UserSession
+    {
+        public readonly User User;
+        public UUID SessionID;
+        public UUID SecureSessionID;
+        public UUID CurrentSceneID;
+        public Vector3 CurrentPosition;
+        public Vector3 CurrentLookAt;
+        public OSDMap ExtraData;
+
+        public UserSession(User user)
+        {
+            User = user;
+            ExtraData = new OSDMap();
+        }
+
+        public OSD GetField(string fieldName)
+        {
+            return ExtraData[fieldName];
+        }
+
+        public void SetField(string fieldName, OSD value)
+        {
+            ExtraData[fieldName] = value;
         }
     }
 
@@ -178,17 +207,23 @@ namespace Simian
 
     public interface IUserClient
     {
-        bool CreateUser(string name, byte accessLevel, OSDMap extradata, out User user);
-        bool CreateUser(UUID id, string name, byte accessLevel, UUID homeLocation, Vector3d homePosition, Vector3 homeLookAt, OSDMap extraData, out User user);
-        bool UpdateUser(User user);
-        bool UpdateUserField(UUID userID, string field, OSD value);
+        bool CreateUser(string name, string email, byte accessLevel, OSDMap extradata, out User user);
+        bool CreateUser(User user);
+        bool UpdateUserFields(UUID userID, OSDMap fields);
         bool TryGetUser(UUID userID, out User user);
         User[] SearchUsers(string query);
 
         bool TryAuthorizeIdentity(string identifier, string type, string credential, out User user);
-
         bool CreateIdentity(Identity identity);
-        bool DeleteIdentity(string identity);
+        bool DeleteIdentity(string identity, string type);
         Identity[] GetUserIdentities(UUID userID);
+
+        bool AddSession(UserSession session);
+        bool UpdateSession(UserSession session);
+        bool RemoveSession(UserSession session);
+        bool TryGetSession(UUID sessionID, out UserSession session);
+        bool TryGetSessionByUserID(UUID userID, out UserSession session);
+
+        bool TryGetFriends(UUID agentID, out IEnumerable<UUID> friends);
     }
 }

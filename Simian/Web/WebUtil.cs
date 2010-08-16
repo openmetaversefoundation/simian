@@ -32,6 +32,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Web;
+using log4net;
 using HttpServer;
 using OpenMetaverse.StructuredData;
 
@@ -42,6 +43,8 @@ namespace Simian
     /// </summary>
     public static class WebUtil
     {
+        private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+
         /// <summary>
         /// Send LLSD to an HTTP client in application/llsd+json form
         /// </summary>
@@ -103,6 +106,7 @@ namespace Simian
             }
             catch (Exception ex)
             {
+                m_log.Warn("GET from URL " + url + " failed: " + ex);
                 errorMessage = ex.Message;
             }
 
@@ -127,8 +131,9 @@ namespace Simian
                 request.ContentLength = requestData.Length;
                 request.ContentType = "application/x-www-form-urlencoded";
 
-                using (Stream requestStream = request.GetRequestStream())
-                    requestStream.Write(requestData, 0, requestData.Length);
+                Stream requestStream = request.GetRequestStream();
+                requestStream.Write(requestData, 0, requestData.Length);
+                requestStream.Close();
 
                 using (WebResponse response = request.GetResponse())
                 {
@@ -152,6 +157,7 @@ namespace Simian
             }
             catch (Exception ex)
             {
+                m_log.Warn("POST to URL " + url + " failed: " + ex);
                 errorMessage = ex.Message;
             }
 

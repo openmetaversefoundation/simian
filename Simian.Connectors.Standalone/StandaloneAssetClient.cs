@@ -43,7 +43,6 @@ namespace Simian.Connectors.Standalone
     {
         const string DEFAULT_ASSETS_PATH = "DefaultAssets";
         const string METADATA_MIME_TYPE = "application/x-simian-metadata";
-        private static readonly TimeSpan CACHE_TIMEOUT = TimeSpan.FromDays(3.0d);
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
@@ -104,12 +103,19 @@ namespace Simian.Connectors.Standalone
             if (asset.ID == UUID.Zero)
                 asset.ID = UUID.Random();
 
+            // Run this asset through the incoming asset filter
+            if (!m_simian.FilterAsset(asset))
+            {
+                m_log.InfoFormat("Asset {0} ({1}, {2} bytes) was rejected", asset.ID, asset.ContentType, asset.Data.Length);
+                return false;
+            }
+
             byte[] metadata = CreateMetadata(asset.CreatorID, asset.ContentType, asset.Local, asset.Temporary, asset.Data, asset.ExtraHeaders);
 
             if (asset.Temporary)
             {
-                m_dataStore.AddOrUpdateAsset(asset.ID, METADATA_MIME_TYPE, metadata, CACHE_TIMEOUT);
-                return m_dataStore.AddOrUpdateAsset(asset.ID, asset.ContentType, asset.Data, CACHE_TIMEOUT);
+                m_dataStore.AddOrUpdateAsset(asset.ID, METADATA_MIME_TYPE, metadata, true);
+                return m_dataStore.AddOrUpdateAsset(asset.ID, asset.ContentType, asset.Data, true);
             }
             else
             {
@@ -127,6 +133,19 @@ namespace Simian.Connectors.Standalone
         public bool TryGetAsset(UUID assetID, string contentType, out Asset asset)
         {
             return TryLocalFetch(assetID, contentType, out asset);
+        }
+
+        public bool TryGetAssetMetadata(UUID assetID, string contentType, out Asset asset)
+        {
+            byte[] metadata;
+            if (m_dataStore.TryGetAsset(assetID, METADATA_MIME_TYPE, out metadata))
+            {
+                asset = CreateAsset(assetID, contentType, metadata, null);
+                return true;
+            }
+
+            asset = null;
+            return false;
         }
 
         public bool TryGetCachedAsset(UUID assetID, string contentType, out Asset asset)
@@ -163,7 +182,7 @@ namespace Simian.Connectors.Standalone
                 }
                 else
                 {
-                    m_log.Info("Metadata expired for unexpired asset " + assetID + " (" + contentType + "), expiring asset");
+                    m_log.Info("Metadata missing for local asset " + assetID + " (" + contentType + "), removing local asset");
                     RemoveAsset(assetID, contentType);
                 }
             }
@@ -182,7 +201,7 @@ namespace Simian.Connectors.Standalone
                 metadata["content_type"] = OSD.FromString(contentType);
                 metadata["creator_id"] = OSD.FromUUID(creatorID);
                 metadata["creation_date"] = OSD.FromDate(DateTime.UtcNow);
-                metadata["sha1"] = OSD.FromBinary(Utils.SHA1(data));
+                metadata["sha256"] = OSD.FromBinary(Utils.SHA256(data));
 
                 if (extraHeaders != null && extraHeaders.Count > 0)
                 {
@@ -210,7 +229,7 @@ namespace Simian.Connectors.Standalone
                     asset.Temporary = map["temporary"].AsBoolean();
                     asset.CreationDate = map["creation_date"].AsDate();
                     asset.CreatorID = map["creator_id"].AsUUID();
-                    asset.SHA1 = map["sha1"].AsBinary();
+                    asset.SHA256 = map["sha256"].AsBinary();
 
                     if (map.ContainsKey("extra_headers"))
                     {
@@ -249,7 +268,7 @@ namespace Simian.Connectors.Standalone
 
                         UUID assetID = ParseUUIDFromFilename(filename);
                         string contentType = m_simian.ExtensionToContentType(Path.GetExtension(filename).TrimStart('.'));
-                        byte[] sha1 = Utils.SHA1(data);
+                        byte[] sha256 = Utils.SHA256(data);
 
                         Asset asset = new Asset
                         {
@@ -259,7 +278,7 @@ namespace Simian.Connectors.Standalone
                             CreatorID = UUID.Zero,
                             Local = false,
                             Temporary = false,
-                            SHA1 = sha1,
+                            SHA256 = sha256,
                             Data = data
                         };
 

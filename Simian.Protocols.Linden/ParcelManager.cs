@@ -60,7 +60,14 @@ namespace Simian.Protocols.Linden
             m_primsPerSquareMeter = DEFAULT_PRIMS_PER_SQM;
             IConfig config = scene.Config.Configs["LindenRegion"];
             if (config != null)
-                m_primsPerSquareMeter = config.GetFloat("PrimsPerSquareMeter", DEFAULT_PRIMS_PER_SQM);
+            {
+                // Parse the floating point value as a string and convert manually to avoid 
+                // localization issues. This hack should be removed when we fix our build of Nini 
+                // to always parse with EnUsCulture
+                string primsPerSquareMeterStr = config.GetString("PrimsPerSquareMeter", DEFAULT_PRIMS_PER_SQM.ToString());
+                if (!Single.TryParse(primsPerSquareMeterStr, out m_primsPerSquareMeter))
+                    m_primsPerSquareMeter = DEFAULT_PRIMS_PER_SQM;
+            }
 
             m_parcels = new DoubleDictionarySlim<UUID, int, SceneParcel>();
             m_parcelOverlay = new int[64 * 64];

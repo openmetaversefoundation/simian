@@ -195,9 +195,9 @@ namespace Simian.Protocols.Linden
             m_udpServer.BroadcastPacket(packet, category, sendToPausedAgents, allowSplitting);
         }
 
-        public bool EnableCircuit(int circuitCode, User user, Vector3 startPosition, Vector3 lookAt, bool isChildAgent, out Uri seedCapability)
+        public bool EnableCircuit(UserSession session, Vector3 startPosition, Vector3 lookAt, bool isChildAgent, out Uri seedCapability)
         {
-            return m_udpServer.EnableCircuit(circuitCode, user, startPosition, lookAt, isChildAgent, out seedCapability);
+            return m_udpServer.EnableCircuit(session, startPosition, lookAt, isChildAgent, out seedCapability);
         }
 
         public void FireQueueEmpty(LLAgent agent, ThrottleCategoryFlags categories)
@@ -583,10 +583,10 @@ namespace Simian.Protocols.Linden
 
         #region Packet Handling
 
-        internal bool EnableCircuit(int circuitCode, User user, Vector3 startPosition, Vector3 lookAt, bool isChildAgent, out Uri seedCapability)
+        internal bool EnableCircuit(UserSession session, Vector3 startPosition, Vector3 lookAt, bool isChildAgent, out Uri seedCapability)
         {
             LLAgent client;
-            if (m_clients.TryGetValue(user.ID, out client))
+            if (m_clients.TryGetValue(session.User.ID, out client))
             {
                 if (!client.IsChildPresence && !isChildAgent)
                 {
@@ -596,13 +596,13 @@ namespace Simian.Protocols.Linden
                     m_clients.Remove(client.ID, client.RemoteEndPoint);
 
                     // Create a new LLAgent
-                    client = CreateLLAgent(circuitCode, user, startPosition, lookAt, isChildAgent);
+                    client = CreateLLAgent(session, startPosition, lookAt, isChildAgent);
                     seedCapability = client.SeedCapability;
                     return true;
                 }
                 else if (!client.IsChildPresence && isChildAgent)
                 {
-                    m_log.Warn(Scene.Name + " trying to enable child circuit for a root agent, ignoring for " + user.Name);
+                    m_log.Warn(Scene.Name + " trying to enable child circuit for a root agent, ignoring for " + session.User.Name);
                 }
                 else if (client.IsChildPresence && !isChildAgent)
                 {
@@ -640,7 +640,7 @@ namespace Simian.Protocols.Linden
             else
             {
                 // Create a new LLAgent
-                client = CreateLLAgent(circuitCode, user, startPosition, lookAt, isChildAgent);
+                client = CreateLLAgent(session, startPosition, lookAt, isChildAgent);
                 seedCapability = client.SeedCapability;
                 return true;
             }
@@ -649,15 +649,15 @@ namespace Simian.Protocols.Linden
             return false;
         }
 
-        private LLAgent CreateLLAgent(int circuitCode, User user, Vector3 startPosition, Vector3 lookAt, bool isChildAgent)
+        private LLAgent CreateLLAgent(UserSession session, Vector3 startPosition, Vector3 lookAt, bool isChildAgent)
         {
-            LLAgent client = new LLAgent(this, m_throttleRates, m_throttle, (uint)circuitCode,
-                    user.ID, user.SessionID, user.SecureSessionID, null, m_defaultRTO, m_maxRTO, isChildAgent);
+            LLAgent client = new LLAgent(this, m_throttleRates, m_throttle, session.GetField("CircuitCode").AsUInteger(),
+                    session.User.ID, session.SessionID, session.SecureSessionID, null, m_defaultRTO, m_maxRTO, isChildAgent);
 
             // Set the verified flag
-            client.IsVerified = (user.AccessLevel > 0);
+            client.IsVerified = (session.User.AccessLevel > 0);
             // Set the agent name
-            client.Name = user.Name;
+            client.Name = session.User.Name;
             // Set the starting position
             client.RelativePosition = startPosition;
             // Set the starting rotation
@@ -669,7 +669,7 @@ namespace Simian.Protocols.Linden
 
             // Create a seed capability
             if (m_httpServer != null)
-                client.SeedCapability = this.Scene.Capabilities.AddCapability(user.ID, true, this.Scene.ID, "region_seed_capability");
+                client.SeedCapability = this.Scene.Capabilities.AddCapability(session.User.ID, true, this.Scene.ID, "region_seed_capability");
             else
                 client.SeedCapability = new Uri("http://localhost:0");
 

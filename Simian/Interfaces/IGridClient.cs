@@ -36,6 +36,7 @@ namespace Simian
 
     public interface IGridClient
     {
+        bool TryGetScene(UUID sceneID, out SceneInfo sceneInfo);
         bool TryGetSceneAt(Vector3d position, bool onlyEnabled, out SceneInfo sceneInfo);
         bool TryGetSceneNear(Vector3d position, bool onlyEnabled, out SceneInfo sceneInfo);
         bool TryGetRegionRange(Vector3d minPosition, Vector3d maxPosition, out IList<SceneInfo> scenes);

@@ -33,7 +33,6 @@ namespace Simian
     /// Contains a signature pattern (for matching against incoming
     /// requests) and a callback for handling the request
     /// </summary>
-    [System.Diagnostics.DebuggerDisplay("{Signature}")]
     public sealed class HttpRequestHandler : IEquatable<HttpRequestHandler>
     {
         /// <summary>Signature pattern to match against incoming requests</summary>
@@ -68,6 +67,11 @@ namespace Simian
         public override bool Equals(object obj)
         {
             return (obj is HttpRequestHandler) ? this.Signature == ((HttpRequestHandler)obj).Signature : false;
+        }
+
+        public override string ToString()
+        {
+            return Signature.ToString();
         }
 
         /// <summary>

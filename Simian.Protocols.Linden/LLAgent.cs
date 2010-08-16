@@ -126,10 +126,8 @@ namespace Simian.Protocols.Linden
         private Vector3 m_scale = new Vector3(0.45f, 0.6f, 1.77f); // A reasonable default avatar size
         private Vector3 m_relativePosition;
         private Quaternion m_relativeRotation = Quaternion.Identity;
-        private Vector3 m_rotationAxis;
         private Vector3 m_velocity;
         private Vector3 m_acceleration;
-        private Vector3 m_angularVelocity;
         private Vector4 m_collisionPlane = Vector4.UnitW;
         private ILinkable m_parent;
         private MapAndArray<UUID, ILinkable> m_children = new MapAndArray<UUID,ILinkable>();
@@ -139,7 +137,6 @@ namespace Simian.Protocols.Linden
         private bool m_collisionsEnabled = true;
         private Vector3 m_lastPosition;
         private Quaternion m_lastRotation = Quaternion.Identity;
-        private Vector3 m_lastAngularVelocity;
         private Vector3 m_lastAcceleration;
         private Vector3 m_lastVelocity;
         private Vector3 m_inputVelocity;
@@ -268,13 +265,13 @@ namespace Simian.Protocols.Linden
         }
         public Vector3 RotationAxis
         {
-            get { return m_rotationAxis; }
-            set { m_rotationAxis = value; }
+            get { return Vector3.UnitZ; }
+            set { }
         }
         public Vector3 AngularVelocity
         {
-            get { return m_angularVelocity; }
-            set { m_angularVelocity = value; }
+            get { return Vector3.Zero; }
+            set { }
         }
         public Vector3 Acceleration
         {
@@ -340,8 +337,8 @@ namespace Simian.Protocols.Linden
         public Vector3 LastSignificantPosition { get; set; }
         public Vector3 LastAngularVelocity
         {
-            get { return m_lastAngularVelocity; }
-            set { m_lastAngularVelocity = value; }
+            get { return Vector3.Zero; }
+            set { }
         }
         public Vector3 LastAcceleration
         {

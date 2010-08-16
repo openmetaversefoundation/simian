@@ -95,7 +95,7 @@ namespace Simian.Scenes.LLScene
 
                     m_scenes[scene.ID] = scene;
 
-                    CreateMapTile(scene);
+                    //CreateMapTile(scene);
                 }
                 else
                 {
@@ -145,11 +145,8 @@ namespace Simian.Scenes.LLScene
             return m_scenes.TryGetValue(sceneID, out scene);
         }
 
-
         private void CreateMapTile(IScene scene)
         {
-            if (scene.Name != "Orangutan") return;
-
             ISceneRenderer renderer = scene.Simian.GetAppModule<ISceneRenderer>();
             IGridClient gridClient = scene.Simian.GetAppModule<IGridClient>();
 

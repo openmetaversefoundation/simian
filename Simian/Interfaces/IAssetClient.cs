@@ -44,7 +44,7 @@ namespace Simian
         public UUID CreatorID;
         public string ContentType;
         public DateTime CreationDate;
-        public byte[] SHA1;
+        public byte[] SHA256;
         public bool Local;
         public bool Temporary;
         public byte[] Data;
@@ -57,6 +57,7 @@ namespace Simian
         bool StoreAsset(string contentType, bool local, bool temporary, byte[] data, UUID creatorID, out UUID assetID);
         bool RemoveAsset(UUID assetID, string contentType);
         bool TryGetAsset(UUID assetID, string contentType, out Asset asset);
+        bool TryGetAssetMetadata(UUID assetID, string contentType, out Asset asset);
         bool TryGetCachedAsset(UUID assetID, string contentType, out Asset asset);
     }
 }

@@ -30,36 +30,6 @@ using OpenMetaverse;
 
 namespace Simian
 {
-    public enum PhysicsType : int
-    {
-        Avatar = 0,
-        Box,
-        Cone,
-        Cylinder,
-        Mesh,
-        Sphere,
-        ConvexHull,
-    }
-
-    #region Physics Hull Classes
-
-    public abstract class PhysicsHull
-    {
-    }
-
-    public class PhysicsMesh : PhysicsHull
-    {
-        public Vector3[] Vertices;
-        public ushort[] Indices;
-    }
-
-    public class PhysicsConvexHull : PhysicsHull
-    {
-        public Vector3[] Vertices;
-    }
-
-    #endregion Physics Hull Classes
-
     public interface IPhysical : ILinkable
     {
         Vector3 Velocity { get; set; }

@@ -26,13 +26,25 @@
  */
 
 using System;
-using System.Collections.Generic;
-using OpenMetaverse;
 
-namespace Simian
+namespace Simian.Protocols.WebSocket
 {
-    public interface IMessagingClient
+    public sealed class OutgoingMessage
     {
-        bool TryGetFriends(UUID agentID, out IEnumerable<UUID> friends);
+        /// <summary>Serialized message to send</summary>
+        public readonly string Data;
+        /// <summary>Throttling category this message belongs to</summary>
+        public readonly ThrottleCategory Category;
+
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        /// <param name="data">Serialized message to send</param>
+        /// <param name="category">Throttling category for this packet</param>
+        public OutgoingMessage(string data, ThrottleCategory category)
+        {
+            Data = data;
+            Category = category;
+        }
     }
 }

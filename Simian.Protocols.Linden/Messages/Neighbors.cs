@@ -643,19 +643,17 @@ namespace Simian.Protocols.Linden
 
                 // Find the presence position relative to this neighbor
                 Vector3 relativePosition = agent.ScenePosition - new Vector3(neighbor.MinPosition - m_scene.MinPosition);
+                // Calculate the direction this agent is currently facing
+                Vector3 lookAt = Vector3.UnitY * agent.RelativeRotation;
 
                 // Create the template rez_avatar/request message
                 OSDMap rezAvatarRequest = new OSDMap
                 {
                     { "agent_id", OSD.FromUUID(agent.ID) },
-                    { "circuit_code", OSD.FromInteger(agent.CircuitCode) },
-                    { "secure_session_id", OSD.FromUUID(agent.SecureSessionID) },
                     { "session_id", OSD.FromUUID(agent.SessionID) },
-                    { "first_name", OSD.FromString(firstName) },
-                    { "last_name", OSD.FromString(lastName) },
                     { "position", OSD.FromVector3(relativePosition) },
+                    { "look_at", OSD.FromVector3(lookAt) },
                     { "velocity", OSD.FromVector3(agent.Velocity) },
-                    { "access_level", OSD.FromInteger(agent.AccessLevel) },
                     { "child", OSD.FromBoolean(isChild) }
                 };
 

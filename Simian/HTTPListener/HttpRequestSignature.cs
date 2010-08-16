@@ -36,7 +36,6 @@ namespace Simian
     /// Matches based on any combination of HTTP Method, Content-Type header,
     /// and URL path. URL path matching supports the * wildcard character
     /// </summary>
-    [System.Diagnostics.DebuggerDisplay("{method} {path} Content-Type: {contentType}")]
     public sealed class HttpRequestSignature : IEquatable<HttpRequestSignature>
     {
         private string method;
@@ -119,6 +118,15 @@ namespace Simian
         public override int GetHashCode()
         {
             return method.GetHashCode() ^ contentType.GetHashCode() ^ path.GetHashCode();
+        }
+
+        /// <summary>
+        /// Returns a human-friendly string representation of this signature
+        /// </summary>
+        /// <returns>A human-friendly string representation of this signature</returns>
+        public override string ToString()
+        {
+            return String.Format("{0} {1} Content-Type: {2}", method, path, contentType);
         }
 
         /// <summary>

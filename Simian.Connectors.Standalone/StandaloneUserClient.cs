@@ -40,26 +40,14 @@ namespace Simian.Connectors.Standalone
     {
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
-        private UUID m_defaultHomeLocation;
-        private Vector3d m_defaultHomePosition;
-        private Vector3 m_defaultHomeLookAt;
-
         private FileDataStore m_fileDataStore;
         private Dictionary<string, Identity> m_identities = new Dictionary<string, Identity>();
         private Dictionary<UUID, User> m_users = new Dictionary<UUID, User>();
+        private Dictionary<UUID, UserSession> m_sessions = new Dictionary<UUID, UserSession>();
         private object m_syncRoot = new object();
 
         public bool Start(Simian simian)
         {
-            IConfig config = simian.Config.Configs["Avatars"];
-
-            if (config != null)
-            {
-                UUID.TryParse(config.GetString("DefaultHomeLocation"), out m_defaultHomeLocation);
-                Vector3d.TryParse(config.GetString("DefaultHomePosition"), out m_defaultHomePosition);
-                Vector3.TryParse(config.GetString("DefaultHomeLookAt"), out m_defaultHomeLookAt);                
-            }
-
             m_fileDataStore = simian.GetAppModule<FileDataStore>();
             if (m_fileDataStore != null)
             {
@@ -99,59 +87,45 @@ namespace Simian.Connectors.Standalone
 
         #region IUserClient
 
-        public bool CreateUser(string name, byte accessLevel, OSDMap extradata, out User user)
+        public bool CreateUser(string name, string email, byte accessLevel, OSDMap extradata, out User user)
         {
-            return CreateUser(new UUID(Utils.MD5String(name)), name, accessLevel, m_defaultHomeLocation, m_defaultHomePosition, m_defaultHomeLookAt, extradata, out user);
-        }
-
-        public bool CreateUser(UUID id, string name, byte accessLevel, UUID homeLocation, Vector3d homePosition, Vector3 homeLookAt, OSDMap extraData, out User user)
-        {
-            // TODO: If we wanted to restrict duplicate names on a grid we could, by storing a HashSet<string> of names
             user = new User
             {
-                ID = id,
+                ID = new UUID(Utils.MD5String(name)),
                 Name = name,
-                HomeLocation = homeLocation,
-                HomePosition = homePosition,
-                HomeLookAt = homeLookAt,
+                Email = email,
                 AccessLevel = accessLevel
             };
+            foreach (KeyValuePair<string, OSD> kvp in extradata)
+                user.SetField(kvp.Key, kvp.Value);
 
+            return CreateUser(user);
+        }
+
+        public bool CreateUser(User user)
+        {
+            // TODO: If we wanted to restrict duplicate names on a grid we could, by storing a HashSet<string> of names
             lock (m_syncRoot)
             {
                 m_users[user.ID] = user;
                 SerializeUser(user);
             }
 
-            m_log.Info("Created user " + name);
-
+            m_log.Info("Created user " + user.Name);
             return true;
         }
 
-        public bool UpdateUser(User user)
-        {
-            lock (m_syncRoot)
-            {
-                if (!m_users.ContainsKey(user.ID))
-                    return false;
-
-                m_users[user.ID] = user;
-                SerializeUser(user);
-
-                return true;
-            }
-        }
-
-        public bool UpdateUserField(UUID userID, string field, OSD value)
+        public bool UpdateUserFields(UUID userID, OSDMap fields)
         {
             lock (m_syncRoot)
             {
                 User user;
                 if (m_users.TryGetValue(userID, out user))
                 {
-                    user.SetField(field, value);
-                    SerializeUser(user);
+                    foreach (KeyValuePair<string, OSD> kvp in fields)
+                        user.SetField(kvp.Key, kvp.Value);
 
+                    SerializeUser(user);
                     return true;
                 }
 
@@ -229,7 +203,7 @@ namespace Simian.Connectors.Standalone
             }
         }
 
-        public bool DeleteIdentity(string identity)
+        public bool DeleteIdentity(string identity, string type)
         {
             // TODO: Implement this
             return false;
@@ -239,6 +213,67 @@ namespace Simian.Connectors.Standalone
         {
             // TODO: Implement this
             return null;
+        }
+
+        public bool TryGetFriends(UUID agentID, out IEnumerable<UUID> friends)
+        {
+            friends = null;
+            return false;
+        }
+
+        public bool AddSession(UserSession session)
+        {
+            lock (m_syncRoot)
+                m_sessions[session.User.ID] = session;
+            return true;
+        }
+
+        public bool UpdateSession(UserSession session)
+        {
+            lock (m_syncRoot)
+            {
+                UserSession existingSession;
+                if (m_sessions.TryGetValue(session.User.ID, out existingSession))
+                {
+                    existingSession.CurrentLookAt = session.CurrentLookAt;
+                    existingSession.CurrentPosition = session.CurrentPosition;
+                    existingSession.CurrentSceneID = session.CurrentSceneID;
+                    existingSession.ExtraData = session.ExtraData;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool RemoveSession(UserSession session)
+        {
+            lock (m_syncRoot)
+                return m_sessions.Remove(session.User.ID);
+        }
+
+        public bool TryGetSession(UUID sessionID, out UserSession session)
+        {
+            lock (m_syncRoot)
+            {
+                foreach (UserSession curSession in m_sessions.Values)
+                {
+                    if (curSession.SessionID == sessionID)
+                    {
+                        session = curSession;
+                        return true;
+                    }
+                }
+            }
+
+            session = null;
+            return false;
+        }
+
+        public bool TryGetSessionByUserID(UUID userID, out UserSession session)
+        {
+            lock (m_syncRoot)
+                return m_sessions.TryGetValue(userID, out session);
         }
 
         #endregion IUserClient

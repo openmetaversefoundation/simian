@@ -1103,8 +1103,10 @@ namespace Simian.Protocols.Linden
                     m_volume = Utils.PI * scale.X * scale.Y * scale.Z;
                     break;
                 case PhysicsType.Mesh:
-                    if (hull == null) hull = GetPhysicsHull();
-                    Util.GetMeshVolume((PhysicsMesh)hull, scale);
+                    if (hull != null)
+                        Util.GetMeshVolume((PhysicsMesh)hull, scale);
+                    else
+                        m_volume = scale.X * scale.Y * scale.Z;
                     break;
                 case PhysicsType.ConvexHull:
                     // FIXME: Need to be able to build a convex hull from the point cloud to calculate 

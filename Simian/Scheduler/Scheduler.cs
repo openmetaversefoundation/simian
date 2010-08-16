@@ -232,7 +232,7 @@ namespace Simian
 
         private void AddThread(ThreadWatchdogInfo threadInfo)
         {
-            m_log.Debug("[WATCHDOG]: Started tracking thread \"" + threadInfo.Thread.Name + "\" (ID " + threadInfo.Thread.ManagedThreadId + ")");
+            //m_log.Debug("[WATCHDOG]: Started tracking thread \"" + threadInfo.Thread.Name + "\" (ID " + threadInfo.Thread.ManagedThreadId + ")");
 
             lock (m_threads)
                 m_threads.Add(threadInfo.Thread.ManagedThreadId, threadInfo);

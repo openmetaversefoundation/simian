@@ -38,6 +38,12 @@ namespace Simian.Connectors.Standalone
     [ApplicationModule("StandaloneInventoryClient")]
     public class StandaloneInventoryClient : IInventoryClient, IApplicationModule
     {
+        private static readonly UUID HAIR_ASSET = new UUID("dc675529-7ba5-4976-b91d-dcb9e5e36188");
+        private static readonly UUID PANTS_ASSET = new UUID("3e8ee2d6-4f21-4a55-832d-77daa505edff");
+        private static readonly UUID SHAPE_ASSET = new UUID("530a2614-052e-49a2-af0e-534bb3c05af0");
+        private static readonly UUID SHIRT_ASSET = new UUID("6a714f37-fe53-4230-b46f-8db384465981");
+        private static readonly UUID SKIN_ASSET = new UUID("5f787f25-f761-4a35-9764-6418ee4774c4");
+        private static readonly UUID EYES_ASSET = new UUID("78d20332-9b07-44a2-bf74-3b368605f4b5");
         private static readonly UUID LIBRARY_OWNER = new UUID("ba2a564a-f0f1-4b82-9c61-b7520bfcd09f");
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
@@ -593,7 +599,16 @@ namespace Simian.Connectors.Standalone
                 if (!m_userClient.TryGetUser(LIBRARY_OWNER, out libraryUser))
                 {
                     // Create the library owner
-                    if (!m_userClient.CreateUser(LIBRARY_OWNER, libraryOwnerName, 1, UUID.Zero, Vector3d.Zero, Vector3.Zero, null, out libraryUser))
+                    libraryUser = new User
+                    {
+                        AccessLevel = 1,
+                        Email = "INVALID " + UUID.Random().ToString(),
+                        ID = LIBRARY_OWNER,
+                        LastLogin = DateTime.UtcNow,
+                        Name = libraryOwnerName
+                    };
+
+                    if (!m_userClient.CreateUser(libraryUser))
                         m_log.ErrorFormat("Failed to create library owner \"{0}\" ({1})", libraryOwnerName, LIBRARY_OWNER);
                 }
             }
@@ -634,33 +649,33 @@ namespace Simian.Connectors.Standalone
             UUID clothingFolder = CreateFolder(inventory, rootFolderID, "Clothing", "application/vnd.ll.clothing", ownerID);
             UUID outfitFolder = CreateFolder(inventory, clothingFolder, "Default Outfit", "application/octet-stream", ownerID);
 
-            UUID hairItem = CreateItem(inventory, outfitFolder, "Default Hair", "Default Hair", WearableType.Hair, new UUID("dc675529-7ba5-4976-b91d-dcb9e5e36188"), "application/vnd.ll.bodypart", ownerID);
-            UUID pantsItem = CreateItem(inventory, outfitFolder, "Default Pants", "Default Pants", WearableType.Pants, new UUID("3e8ee2d6-4f21-4a55-832d-77daa505edff"), "application/vnd.ll.clothing", ownerID);
-            UUID shapeItem = CreateItem(inventory, outfitFolder, "Default Shape", "Default Shape", WearableType.Shape, new UUID("530a2614-052e-49a2-af0e-534bb3c05af0"), "application/vnd.ll.bodypart", ownerID);
-            UUID shirtItem = CreateItem(inventory, outfitFolder, "Default Shirt", "Default Shirt", WearableType.Shirt, new UUID("6a714f37-fe53-4230-b46f-8db384465981"), "application/vnd.ll.clothing", ownerID);
-            UUID skinItem = CreateItem(inventory, outfitFolder, "Default Skin", "Default Skin", WearableType.Skin, new UUID("5f787f25-f761-4a35-9764-6418ee4774c4"), "application/vnd.ll.bodypart", ownerID);
-            UUID eyesItem = CreateItem(inventory, outfitFolder, "Default Eyes", "Default Eyes", WearableType.Eyes, new UUID("78d20332-9b07-44a2-bf74-3b368605f4b5"), "application/vnd.ll.bodypart", ownerID);
-
-            //UUID texturesFolder = CreateFolder(inventory, outfitFolder, "Textures", AssetType.Unknown, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Hair Texture", String.Empty, new UUID("7ca39b4c-bd19-4699-aff7-f93fd03d3e7b"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Eyes Texture", String.Empty, new UUID("6522e74d-1660-4e7f-b601-6f48c1659a78"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Body Texture", String.Empty, new UUID("e1a21d3f-7db4-4802-978f-4ace1bad8e7e"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Bottom Texture", String.Empty, new UUID("9bebfaae-6de4-41c7-af5b-f6a3bd052ed3"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Face Texture", String.Empty, new UUID("c4e3fbf4-55ef-4a06-8497-48d4dc993cbb"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Pants Texture", String.Empty, new UUID("54a55781-afa8-a64d-cc69-6d63e6da76fb"), AssetType.Texture, ownerID);
-            //CreateItem(inventory, texturesFolder, "Default Shirt Texture", String.Empty, new UUID("6a714f37-fe53-4230-b46f-8db384465981"), AssetType.Texture, ownerID);
+            UUID hairItem = CreateItem(inventory, outfitFolder, "Default Hair", "Default Hair", WearableType.Hair, HAIR_ASSET, "application/vnd.ll.bodypart", ownerID);
+            UUID pantsItem = CreateItem(inventory, outfitFolder, "Default Pants", "Default Pants", WearableType.Pants, PANTS_ASSET, "application/vnd.ll.clothing", ownerID);
+            UUID shapeItem = CreateItem(inventory, outfitFolder, "Default Shape", "Default Shape", WearableType.Shape, SHAPE_ASSET, "application/vnd.ll.bodypart", ownerID);
+            UUID shirtItem = CreateItem(inventory, outfitFolder, "Default Shirt", "Default Shirt", WearableType.Shirt, SHIRT_ASSET, "application/vnd.ll.clothing", ownerID);
+            UUID skinItem = CreateItem(inventory, outfitFolder, "Default Skin", "Default Skin", WearableType.Skin, SKIN_ASSET, "application/vnd.ll.bodypart", ownerID);
+            UUID eyesItem = CreateItem(inventory, outfitFolder, "Default Eyes", "Default Eyes", WearableType.Eyes, EYES_ASSET, "application/vnd.ll.bodypart", ownerID);
 
             if (m_userClient != null)
             {
-                OSDMap wearableMap = new OSDMap();
-                wearableMap[((int)WearableType.Hair).ToString()] = OSD.FromUUID(hairItem);
-                wearableMap[((int)WearableType.Pants).ToString()] = OSD.FromUUID(pantsItem);
-                wearableMap[((int)WearableType.Shape).ToString()] = OSD.FromUUID(shapeItem);
-                wearableMap[((int)WearableType.Shirt).ToString()] = OSD.FromUUID(shirtItem);
-                wearableMap[((int)WearableType.Skin).ToString()] = OSD.FromUUID(skinItem);
-                wearableMap[((int)WearableType.Eyes).ToString()] = OSD.FromUUID(eyesItem);
+                OSDMap appearanceMap = new OSDMap
+                {
+                    { "Height", OSD.FromReal(1.771488d) },
+                    { "ShapeItem", OSD.FromUUID(shapeItem) },
+                    { "ShapeAsset", OSD.FromUUID(SHAPE_ASSET) },
+                    { "EyesItem", OSD.FromUUID(eyesItem) },
+                    { "EyesAsset", OSD.FromUUID(EYES_ASSET) },
+                    { "HairItem", OSD.FromUUID(hairItem) },
+                    { "HairAsset", OSD.FromUUID(HAIR_ASSET) },
+                    { "PantsItem", OSD.FromUUID(pantsItem) },
+                    { "PantsAsset", OSD.FromUUID(PANTS_ASSET) },
+                    { "ShirtItem", OSD.FromUUID(shirtItem) },
+                    { "ShirtAsset", OSD.FromUUID(SHIRT_ASSET) },
+                    { "SkinItem", OSD.FromUUID(skinItem) },
+                    { "SkinAsset", OSD.FromUUID(SKIN_ASSET) }
+                };
 
-                m_userClient.UpdateUserField(ownerID, "wearables", wearableMap);
+                m_userClient.UpdateUserFields(ownerID, new OSDMap { { "LLAppearance", appearanceMap } });
             }
 
             return inventory;

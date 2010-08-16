@@ -124,124 +124,130 @@ namespace Simian.Protocols.LindenLogin
                     string name = firstName + ' ' + lastName;
                     
                     // DEBUG: Anonymous logins are always enabled
-                    User agent = AnonymousLogin(name, 200, null, name, AUTH_METHOD, passHash);
-                    bool authorized = true;
+                    UserSession session = AnonymousLogin(name, 200, null, name, AUTH_METHOD, passHash);
 
-                    if (authorized)
+                    SceneInfo loginScene;
+                    Vector3 startPosition, lookAt;
+                    IPAddress address;
+                    int port;
+                    Uri seedCap;
+
+                    // Find a scene that this user is authorized to login to
+                    if (TryGetLoginScene(session, ref startLocation, out loginScene, out startPosition, out lookAt, out address, out port, out seedCap))
                     {
-                        // Initialize presence data for this user
-                        int circuitCode = m_circuitCodeGenerator.Next();
-                        agent.SessionID = UUID.Random();
-                        agent.SecureSessionID = UUID.Random();
-                        agent.SetField("circuit_code", OSD.FromInteger(circuitCode));
-                        agent.LastLogin = DateTime.UtcNow;
+                        m_log.Debug("Authenticated " + session.User.Name);
 
-                        // Find a scene that this user is authorized to login to
-                        Vector3 startPosition, lookAt;
-                        SceneInfo sceneInfo;
-                        IPAddress address;
-                        int port;
-                        Uri seedCap;
+                        #region Login Success Response
 
-                        if (TryGetLoginScene(agent, ref startLocation, out sceneInfo, out startPosition, out lookAt, out address, out port, out seedCap))
+                        // Session is created, construct the login response
+                        LindenLoginData response = new LindenLoginData();
+
+                        uint regionX, regionY;
+                        GetRegionXY(loginScene.MinPosition, out regionX, out regionY);
+
+                        response.AgentID = session.User.ID;
+                        response.BuddyList = GetBuddyList(session.User.ID);
+                        response.CircuitCode = session.GetField("CircuitCode").AsInteger();
+                        SetClassifiedCategories(ref response);
+                        response.FirstName = firstName;
+                        
+                        response.LastName = lastName;
+                        response.Login = true;
+                        response.LookAt = lookAt;
+                        response.Message = "Welcome to Simian";
+                        response.RegionX = regionX;
+                        response.RegionY = regionY;
+                        response.SeedCapability = (seedCap != null) ? seedCap.AbsoluteUri : "http://localhost:0/";
+                        response.SessionID = session.SessionID;
+                        response.SecureSessionID = session.SecureSessionID;
+                        response.StartLocation = startLocation;
+                        response.SimAddress = address.ToString();
+                        response.SimPort = (uint)port;
+
+                        // Set the home scene information
+                        SceneInfo homeScene;
+                        if (m_gridClient.TryGetScene(session.User.HomeSceneID, out homeScene))
                         {
-                            m_log.Debug("Authenticated " + agent.Name);
-
-                            // Update the user with the current presence data
-                            m_userClient.UpdateUser(agent);
-
-                            #region Login Success Response
-
-                            // Session is created, construct the login response
-                            LindenLoginData response = new LindenLoginData();
-
-                            uint regionX, regionY;
-                            GetRegionXY(sceneInfo.MinPosition, out regionX, out regionY);
-
                             uint homeRegionX, homeRegionY;
-                            GetRegionXY(agent.HomePosition, out homeRegionX, out homeRegionY);
+                            GetRegionXY(homeScene.MinPosition, out homeRegionX, out homeRegionY);
 
-                            Vector3d homeMinPosition = new Vector3d(homeRegionX * 256.0d, homeRegionY * 256.0d, 0.0d);
-                            Vector3d homePosition = agent.HomePosition - homeMinPosition;
-
-                            response.AgentID = agent.ID;
-                            response.BuddyList = GetBuddyList(agent.ID);
-                            response.CircuitCode = circuitCode;
-                            SetClassifiedCategories(ref response);
-                            response.FirstName = firstName;
-                            response.HomeLookAt = agent.HomeLookAt;
-                            response.HomePosition = new Vector3(homePosition);
+                            response.HomeLookAt = session.User.HomeLookAt;
+                            response.HomePosition = session.User.HomePosition;
                             response.HomeRegionX = homeRegionX;
                             response.HomeRegionY = homeRegionY;
-                            response.LastName = lastName;
-                            response.Login = true;
-                            response.LookAt = lookAt;
-                            response.Message = "DEFAULT_WELCOME_MESSAGE";
-                            response.RegionX = regionX;
-                            response.RegionY = regionY;
-                            response.SeedCapability = (seedCap != null) ? seedCap.AbsoluteUri : "http://localhost:0/";
-                            response.SessionID = agent.SessionID;
-                            response.SecureSessionID = agent.SecureSessionID;
-                            response.StartLocation = startLocation;
-                            response.SimAddress = address.ToString();
-                            response.SimPort = (uint)port;
-
-                            SetActiveGestures(agent, ref response);
-
-                            GetInventory(agent, ref response);
-
-                            m_log.Info("Login to " + sceneInfo.Name + " prepared for " + agent.Name + ", returning response");
-                            return response.ToXmlRpcResponse();
-
-                            //return CreateLoginInternalErrorResponse();
-
-                            #endregion Login Success Response
                         }
                         else
                         {
-                            m_log.Error("Could not find a default local scene, cancelling login");
-                            return CreateLoginNoRegionResponse();
+                            response.HomeLookAt = lookAt;
+                            response.HomePosition = startPosition;
+                            response.HomeRegionX = regionX;
+                            response.HomeRegionY = regionY;
                         }
+
+                        SetActiveGestures(session.User, ref response);
+
+                        GetInventory(session.User, ref response);
+
+                        m_log.Info("Login to " + loginScene.Name + " prepared for " + session.User.Name + ", returning response");
+                        return response.ToXmlRpcResponse();
+
+                        #endregion Login Success Response
                     }
                     else
                     {
-                        return CreateLoginFailedResponse();
+                        m_log.Error("Could not find a default local scene for " + name + ", cancelling login");
+                        m_userClient.RemoveSession(session);
+                        return CreateLoginNoRegionResponse();
                     }
                 }
             }
 
+            m_log.Warn("Received invalid login data, returning an error response");
             return CreateLoginGridErrorResponse();
         }
 
-        private User AnonymousLogin(string name, byte accessLevel, OSDMap extraData, string identifier, string type, string credential)
+        private UserSession AnonymousLogin(string name, byte accessLevel, OSDMap extraData, string identifier, string type, string credential)
         {
             User user;
-            if (m_userClient.TryAuthorizeIdentity(identifier, type, credential, out user))
-                return user;
+            if (!m_userClient.TryAuthorizeIdentity(identifier, type, credential, out user))
+            {
+                // We don't have an e-mail address for this person so just create a random string for the e-mail
+                string email = "INVALID " + UUID.Random().ToString();
 
-            m_userClient.CreateUser(name, accessLevel, extraData, out user);
-            m_userClient.CreateIdentity(new Identity { UserID = user.ID, Enabled = true, Credential = credential, Identifier = identifier, Type = type });
+                // Create a new user and identity
+                m_userClient.CreateUser(name, email, accessLevel, extraData, out user);
+                m_userClient.CreateIdentity(new Identity { UserID = user.ID, Enabled = true, Credential = credential, Identifier = identifier, Type = type });
+            }
 
-            return user;
+            // Create a session for this user
+            UserSession session = new UserSession(user);
+            session.SessionID = UUID.Random();
+            session.SecureSessionID = UUID.Random();
+            session.SetField("CircuitCode", OSD.FromInteger(m_circuitCodeGenerator.Next()));
+            user.LastLogin = DateTime.UtcNow;
+
+            // Store the session in the user service
+            m_userClient.AddSession(session);
+
+            return session;
         }
 
-        private bool TryGetLoginScene(User agent, ref string startLocation, out SceneInfo sceneInfo, out Vector3 sceneStartPosition,
+        private bool TryGetLoginScene(UserSession session, ref string startLocation, out SceneInfo sceneInfo, out Vector3 sceneStartPosition,
             out Vector3 lookAt, out IPAddress address, out int port, out Uri seedCap)
         {
             sceneInfo = null;
             sceneStartPosition = Vector3.Zero;
+            lookAt = Vector3.UnitY;
 
             if (startLocation.Equals("last", StringComparison.InvariantCultureIgnoreCase))
             {
-                // Try to get the scene nearest the last position of this agent
-                m_gridClient.TryGetSceneNear(agent.LastPosition, true, out sceneInfo);
-                sceneStartPosition = Util.PositionToLocalPosition(agent.LastPosition);
+                m_gridClient.TryGetScene(session.User.LastSceneID, out sceneInfo);
+                sceneStartPosition = session.User.LastPosition;
             }
             else if (startLocation.Equals("home", StringComparison.InvariantCultureIgnoreCase))
             {
-                // Try to get the scene nearest the home position of this agent
-                m_gridClient.TryGetSceneNear(agent.HomePosition, true, out sceneInfo);
-                sceneStartPosition = Util.PositionToLocalPosition(agent.HomePosition);
+                m_gridClient.TryGetScene(session.User.HomeSceneID, out sceneInfo);
+                sceneStartPosition = session.User.HomePosition;
             }
             else
             {
@@ -271,7 +277,7 @@ namespace Simian.Protocols.LindenLogin
             if (sceneInfo != null)
             {
                 // Send a rez_avatar/request message to this scene
-                OSDMap response = RezAvatarRequest(sceneInfo, agent, sceneStartPosition);
+                OSDMap response = RezAvatarRequest(sceneInfo, session, sceneStartPosition, lookAt);
 
                 if (response != null)
                 {
@@ -281,27 +287,27 @@ namespace Simian.Protocols.LindenLogin
                     port = response["sim_port"].AsInteger();
                     seedCap = response["region_seed_capability"].AsUri();
 
-                    m_log.Debug("Found scene " + sceneInfo.Name + " for " + agent.Name + " to login to");
+                    m_log.Debug("Found scene " + sceneInfo.Name + " for " + session.User.Name + " to login to");
                     return true;
                 }
                 else if (startLocation.Equals("last", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    m_log.Info("Could not create a presence for user " + agent.Name + " in last scene " +
+                    m_log.Info("Could not create a presence for user " + session.User.Name + " in last scene " +
                         sceneInfo.Name + ", trying home starting location");
 
                     startLocation = "home";
-                    return TryGetLoginScene(agent, ref startLocation, out sceneInfo, out sceneStartPosition,
+                    return TryGetLoginScene(session, ref startLocation, out sceneInfo, out sceneStartPosition,
                         out lookAt, out address, out port, out seedCap);
                 }
                 else
                 {
-                    m_log.Info("Could not create a presence for user " + agent.Name + " in home scene " +
+                    m_log.Info("Could not create a presence for user " + session.User.Name + " in home scene " +
                         sceneInfo.Name + ", giving up");
                 }
             }
             else
             {
-                m_log.Warn("Could not find a starting location for " + agent.Name + " with requested location " + startLocation);
+                m_log.Warn("Could not find a starting location for " + session.User.Name + " with requested location " + startLocation);
             }
 
             sceneStartPosition = Vector3.Zero;
@@ -312,7 +318,7 @@ namespace Simian.Protocols.LindenLogin
             return false;
         }
 
-        private OSDMap RezAvatarRequest(SceneInfo sceneInfo, User user, Vector3 relativeStartPosition)
+        private OSDMap RezAvatarRequest(SceneInfo sceneInfo, UserSession session, Vector3 relativeStartPosition, Vector3 lookAt)
         {
             string urlFriendlySceneName = WebUtil.UrlEncode(sceneInfo.Name);
             Uri publicRegionSeedCap = sceneInfo.PublicSeedCapability;
@@ -335,18 +341,16 @@ namespace Simian.Protocols.LindenLogin
                 if (rezAvatarRequestCap != null)
                 {
                     string firstName, lastName;
-                    Util.GetFirstLastName(user.Name, out firstName, out lastName);
+                    Util.GetFirstLastName(session.User.Name, out firstName, out lastName);
 
                     OSDMap rezAvatarRequest = new OSDMap
                     {
-                        { "agent_id", OSD.FromUUID(user.ID) },
-                        { "circuit_code", user.GetField("circuit_code") },
-                        { "secure_session_id", OSD.FromUUID(user.SecureSessionID) },
-                        { "session_id", OSD.FromUUID(user.SessionID) },
-                        { "first_name", OSD.FromString(firstName) },
-                        { "last_name", OSD.FromString(lastName) },
+                        { "agent_id", OSD.FromUUID(session.User.ID) },
+                        { "session_id", OSD.FromUUID(session.SessionID) },
                         { "position", OSD.FromVector3(relativeStartPosition) },
-                        { "access_level", OSD.FromInteger(user.AccessLevel) }
+                        { "look_at", OSD.FromVector3(lookAt) },
+                        { "velocity", OSD.FromVector3(Vector3.Zero) },
+                        { "child", OSD.FromBoolean(false) }
                     };
 
                     OSDMap rezAvatarResponse = null;
@@ -363,17 +367,17 @@ namespace Simian.Protocols.LindenLogin
                         if (rezAvatarResponse["connect"].AsBoolean())
                             return rezAvatarResponse;
                         else
-                            m_log.Warn("Cannot rez avatar " + user.Name + ", rez_avatar/request to " + rezAvatarRequestCap + " failed: " + rezAvatarResponse["message"].AsString());
+                            m_log.Warn("Cannot rez avatar " + session.User.Name + ", rez_avatar/request to " + rezAvatarRequestCap + " failed: " + rezAvatarResponse["message"].AsString());
                     }
                 }
                 else
                 {
-                    m_log.Warn("Cannot rez avatar " + user.Name + ", rez_avatar/request capability not found in public region seed capability: " + publicRegionCaps.ToString());
+                    m_log.Warn("Cannot rez avatar " + session.User.Name + ", rez_avatar/request capability not found in public region seed capability: " + publicRegionCaps.ToString());
                 }
             }
             else
             {
-                m_log.Warn("Cannot rez avatar " + user.Name + ", Failed to fetch public region seed capability from " + publicRegionSeedCap);
+                m_log.Warn("Cannot rez avatar " + session.User.Name + ", Failed to fetch public region seed capability from " + publicRegionSeedCap);
             }
 
             return null;

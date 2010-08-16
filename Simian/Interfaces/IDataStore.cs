@@ -31,25 +31,65 @@ using OpenMetaverse;
 
 namespace Simian
 {
+    /// <summary>
+    /// A blob of serialized data that can be stored with IDataStore.BeginSerialize()
+    /// </summary>
     public class SerializedData
     {
+        /// <summary>Unique identifier of the storage bin the serialized data is stored in. Usually
+        /// UUID.Zero for global data or a SceneID for scene-specific data</summary>
         public UUID StoreID;
+        /// <summary>String identifier for the section of the storage bin the serialized data is 
+        /// stored in</summary>
         public string Section;
+        /// <summary>Name of the serialized data</summary>
         public string Name;
+        /// <summary>MIME type of the serialized data</summary>
         public string ContentType;
+        /// <summary>Version number of the serialization format used to store the data</summary>
         public int Version;
+        /// <summary>The serialized data blob</summary>
         public byte[] Data;
     }
 
     public interface IDataStore
     {
+        /// <summary>
+        /// Adds a new asset or updates an existing asset in the local data store
+        /// </summary>
+        /// <param name="dataID">Unique identifier for the data</param>
+        /// <param name="contentType">MIME type of the data</param>
+        /// <param name="data">Asset data to store</param>
+        /// <returns>True if a new asset was created, false if an existing asset was updated</returns>
         bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data);
-        bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data, TimeSpan expiration);
-        bool RemoveAsset(UUID dataID, string contentType);
-        bool TryGetAsset(UUID dataID, string contentType, out byte[] data);
 
-        IList<SerializedData> Deserialize(UUID storeID, string section);
-        SerializedData DeserializeOne(UUID storeID, string section);
+        /// <summary>
+        /// Adds a new asset or updates an existing asset in the local data store
+        /// </summary>
+        /// <param name="dataID">Unique identifier for the data</param>
+        /// <param name="contentType">MIME type of the data</param>
+        /// <param name="data">Asset data to store</param>
+        /// <param name="temporary">True if this is a temporary asset, false if we should 
+        /// permanently store this data</param>
+        /// <returns>True if a new asset was created, false if an existing asset was updated</returns>
+        bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data, bool temporary);
+
+        /// <summary>
+        /// Removes an asset from the local data store
+        /// </summary>
+        /// <param name="dataID">Unique identifier for the data to remove</param>
+        /// <param name="contentType">Content type of the data to remove</param>
+        /// <returns>True if the specified asset was deleted, false if the asset could not be found</returns>
+        bool RemoveAsset(UUID dataID, string contentType);
+
+        /// <summary>
+        /// Attempt to fetch an asset from the local data store
+        /// </summary>
+        /// <param name="dataID">Unique identifier for the data to fetch</param>
+        /// <param name="contentType">Content type of the data to fetch</param>
+        /// <param name="data">The actual data if the fetch was successful</param>
+        /// <returns>True if the fetch was successful, otherwise false</returns>
+        bool TryGetAsset(UUID dataID, string contentType, out byte[] data);
 
         /// <summary>
         /// Used to serialize data to local storage or remove serialized data.
@@ -57,6 +97,42 @@ namespace Simian
         /// with SerializedData.Data set to null
         /// </summary>
         /// <param name="item"></param>
+        /// <remarks>The difference between serialization and asset storage is in the access 
+        /// guarantees. When a call to AddOrUpdateAsset completes, that asset must be immediately 
+        /// fetchable with a call to TryGetAsset. BeginSerialize is a lazy serialization that only 
+        /// guarantees the data will be stored before a clean shutdown of the application, and may 
+        /// be overwritten in memory by a future serialization before ever being written to disk. 
+        /// BeginSerialize is useful for application state caching such as the scene state while 
+        /// AddOrUpdateAsset is more suited for content caching where the content may need to be
+        /// retrieved in the same session that it is stored</remarks>
         void BeginSerialize(SerializedData item);
+
+        /// <summary>
+        /// Deserializes all the data in a given storage bin and section that was stored with a 
+        /// call to BeginSerialize
+        /// </summary>
+        /// <param name="storeID">Unique identifier of the storage bin the serialized data is 
+        /// stored in. Usually UUID.Zero for global data or a SceneID for scene-specific data</param>
+        /// <param name="section">String identifier for the section of the storage bin the 
+        /// serialized data is stored in</param>
+        /// <returns>All of the serialized data stored in the specified storage bin and section, or
+        /// an empty collection on failure</returns>
+        /// <remarks>See <see cref="BeginSerialize"/> for information on the differences between
+        /// asset storage and serialization in the IDataStore</remarks>
+        IList<SerializedData> Deserialize(UUID storeID, string section);
+
+        /// <summary>
+        /// Deserializes exactly one serialized data blob in a given storage bin and section that
+        /// was stored with a call to BeginSerialize
+        /// </summary>
+        /// <param name="storeID">Unique identifier of the storage bin the serialized data is 
+        /// stored in. Usually UUID.Zero for global data or a SceneID for scene-specific data</param>
+        /// <param name="section">String identifier for the section of the storage bin the 
+        /// serialized data is stored in</param>
+        /// <returns>The first blob of serialized data found in the given storage bin and section,
+        /// or null if no data was found</returns>
+        /// <remarks>See <see cref="BeginSerialize"/> for information on the differences between
+        /// asset storage and serialization in the IDataStore</remarks>
+        SerializedData DeserializeOne(UUID storeID, string section);
     }
 }

@@ -43,6 +43,7 @@ namespace Simian
 {
     public delegate void TaskCallback();
     public delegate void CommandCallback(string command, string[] args, bool printHelp);
+    public delegate bool AssetFilterCallback(Asset asset);
 
     public class Simian
     {
@@ -67,6 +68,8 @@ namespace Simian
 
         private Dictionary<string, string> m_typesToExtensions = new Dictionary<string, string>();
         private Dictionary<string, string> m_extensionsToTypes = new Dictionary<string, string>();
+
+        private Dictionary<string, AssetFilterCallback> m_assetFilters = new Dictionary<string, AssetFilterCallback>();
 
         private Dictionary<string, CommandCallback> m_commandHandlers = new Dictionary<string, CommandCallback>();
         private IScene m_commandScene = null;
@@ -255,8 +258,20 @@ namespace Simian
 
             m_moduleContainer = new CompositionContainer(catalog, true);
 
-            m_log.InfoFormat("Found {0} modules in the current assembly and {1} modules in external assemblies",
-                assemblyCatalog.Parts.Count(), directoryCatalog.Parts.Count());
+            try
+            {
+                m_log.InfoFormat("Found {0} modules in the current assembly and {1} modules in external assemblies",
+                    assemblyCatalog.Parts.Count(), directoryCatalog.Parts.Count());
+            }
+            catch (System.Reflection.ReflectionTypeLoadException ex)
+            {
+                StringBuilder error = new StringBuilder("Error(s) encountered loading extension modules. You may have an incompatible or out of date extension .dll in the current folder.");
+                foreach (Exception loaderEx in ex.LoaderExceptions)
+                    error.Append("\n " + loaderEx.Message);
+                m_log.Error(error.ToString());
+
+                return false;
+            }
 
             #endregion Module Container Loading
 
@@ -304,10 +319,13 @@ namespace Simian
             // Start the application modules
             for (int i = 0; i < m_applicationModules.Length; i++)
             {
-                m_applicationModules[i].Start(this);
+                IApplicationModule module = m_applicationModules[i];
+
+                if (!(module is ISceneFactory))
+                    module.Start(this);
 
                 // Get a reference to the IHttpServer if we have one
-                if (m_applicationModules[i] is IHttpServer)
+                if (m_capabilityRouter == null && module is IHttpServer)
                 {
                     // Create a global capability router
                     string capsPath = "/caps/";
@@ -315,6 +333,15 @@ namespace Simian
                     m_capabilityRouter = new CapabilityRouter(m_httpServer.HttpAddress.Combine(capsPath));
                     m_httpServer.AddHandler(null, null, capsPath, false, false, m_capabilityRouter.RouteCapability);
                 }
+            }
+
+            // ISceneFactory modules are always started last
+            for (int i = 0; i < m_applicationModules.Length; i++)
+            {
+                IApplicationModule module = m_applicationModules[i];
+
+                if (module is ISceneFactory)
+                    module.Start(this);
             }
 
             #endregion Module Loading
@@ -552,6 +579,73 @@ namespace Simian
         }
 
         #endregion Command Handling
+
+        #region Asset Filtering
+
+        /// <summary>
+        /// Registers an asset filter for a given content type that can modify 
+        /// or reject incoming assets
+        /// </summary>
+        /// <param name="contentType">Content type to register the filter for</param>
+        /// <param name="filter">Asset filter callback</param>
+        public void RegisterAssetFilter(string contentType, AssetFilterCallback filter)
+        {
+            contentType = contentType.ToLowerInvariant();
+
+            lock (m_assetFilters)
+            {
+                if (m_assetFilters.ContainsKey(contentType))
+                    m_log.Warn("Overwriting asset filter for content type " + contentType);
+
+                m_assetFilters[contentType] = filter;
+            }
+        }
+
+        /// <summary>
+        /// Removes any asset filter associated with the given content type
+        /// </summary>
+        /// <param name="contentType">Content type to remove the asset filter for</param>
+        public void UnregisterAssetFilter(string contentType)
+        {
+            contentType = contentType.ToLowerInvariant();
+
+            lock (m_assetFilters)
+                m_assetFilters.Remove(contentType);
+        }
+
+        /// <summary>
+        /// Runs an asset through any relevant registered filters that may 
+        /// modify or reject the asset. Commonly used for appending metadata to
+        /// incoming assets. This method should be called before any incoming 
+        /// asset is stored
+        /// </summary>
+        /// <param name="asset">A reference to the asset to inspect and 
+        /// potentially modify or reject</param>
+        /// <returns>True if the asset has been accepted (untouched or 
+        /// modified), false if the asset has been rejected</returns>
+        public bool FilterAsset(Asset asset)
+        {
+            Debug.Assert(asset.ContentType != null, "asset.ContentType cannot be null");
+
+            AssetFilterCallback callback;
+            string contentType = asset.ContentType.ToLowerInvariant();
+
+            lock (m_assetFilters)
+            {
+                if (m_assetFilters.TryGetValue(contentType, out callback))
+                {
+                    try { return callback(asset); }
+                    catch (Exception ex)
+                    {
+                        m_log.Error("Exception in asset filter callback for " + contentType + ": " + ex);
+                    }
+                }
+            }
+
+            return (asset != null);
+        }
+
+        #endregion Asset Filtering
 
         #region MIME Type / File Extension Conversion
 

@@ -37,11 +37,29 @@ namespace Simian.Protocols.Linden
     [SceneModule("BoxMesher")]
     public class BoxMesher : ISceneModule, IPrimMesher
     {
+        const float front = -1f;
+        const float back = 1f;
+        const float left = -1f;
+        const float right = 1f;
+        const float top = 1f;
+        const float bottom = -1f;
+
+        const ushort leftbottomfront = 0;
+        const ushort rightbottomfront = 1;
+        const ushort lefttopfront = 2;
+        const ushort righttopfront = 3;
+        const ushort leftbottomback = 4;
+        const ushort rightbottomback = 5;
+        const ushort lefttopback = 6;
+        const ushort righttopback = 7;
+
         PhysicsMesh m_cubeMesh;
+        RenderingMesh m_cubeRenderingMesh;
 
         public BoxMesher()
         {
             m_cubeMesh = CreateCubeMesh();
+            m_cubeRenderingMesh = CreateCubeRenderingMesh();
         }
 
         public void Start(IScene scene)
@@ -57,6 +75,11 @@ namespace Simian.Protocols.Linden
             return m_cubeMesh;
         }
 
+        public RenderingMesh GetRenderingMesh(LLPrimitive prim, DetailLevel lod)
+        {
+            return m_cubeRenderingMesh;
+        }
+
         /// <summary>
         /// Generate a simple cube mesh
         /// </summary>
@@ -65,13 +88,6 @@ namespace Simian.Protocols.Linden
         private static PhysicsMesh CreateCubeMesh()
         {
             // Set up the 8 corners of the cube
-            const float front = -1f;
-            const float back = 1f;
-            const float left = -1f;
-            const float right = 1f;
-            const float top = 1f;
-            const float bottom = -1f;
-
             PhysicsMesh cube = new PhysicsMesh();
             cube.Vertices = new Vector3[]
             {
@@ -85,17 +101,58 @@ namespace Simian.Protocols.Linden
                 new Vector3(right, top, back), // 7
             };
 
-            const ushort leftbottomfront = 0;
-            const ushort rightbottomfront = 1;
-            const ushort lefttopfront = 2;
-            const ushort righttopfront = 3;
-            const ushort leftbottomback = 4;
-            const ushort rightbottomback = 5;
-            const ushort lefttopback = 6;
-            const ushort righttopback = 7;
-
             // Set up the index information for the 12 faces
             cube.Indices = new ushort[]
+            {
+                // Left faces
+                lefttopfront,     lefttopback,      leftbottomback,   // 0
+                leftbottomback,   leftbottomfront,  lefttopfront,     // 1
+
+                // Front faces
+                lefttopfront,     leftbottomfront,  rightbottomfront, // 2
+                rightbottomfront, righttopfront,    lefttopfront,     // 3
+
+                // Right faces
+                righttopback,     righttopfront,    rightbottomfront, // 4 
+                rightbottomfront, rightbottomback,  righttopback,     // 5
+
+                // Back faces
+                leftbottomback,   lefttopback,      righttopback,     // 6
+                righttopback,     rightbottomback,  leftbottomback,   // 7
+
+                // Top faces
+                righttopfront,    righttopback,     lefttopback,      // 8
+                lefttopback,      lefttopfront,     righttopfront,    // 9
+
+                // Bottom faces
+                leftbottomfront,  leftbottomback,   rightbottomback,  // 10
+                rightbottomback,  rightbottomfront, leftbottomfront   // 11
+            };
+
+            return cube;
+        }
+
+        private static RenderingMesh CreateCubeRenderingMesh()
+        {
+            // Set up the 8 corners of the cube
+            RenderingMesh cube = new RenderingMesh();
+            cube.Faces = new RenderingMesh.Face[1];
+            cube.Faces[0] = new RenderingMesh.Face();
+            cube.Faces[0].Vertices = new Vertex[]
+            {
+                // FIXME: Set normals and UV coords too
+                new Vertex() { Position = new Vector3(left, bottom, front) }, // 0
+                new Vertex() { Position = new Vector3(right, bottom, front) }, // 1
+                new Vertex() { Position = new Vector3(left, top, front) }, // 2
+                new Vertex() { Position = new Vector3(right, top, front) }, // 3
+                new Vertex() { Position = new Vector3(left, bottom, back) }, // 4
+                new Vertex() { Position = new Vector3(right, bottom, back) }, // 5
+                new Vertex() { Position = new Vector3(left, top, back) }, // 6
+                new Vertex() { Position = new Vector3(right, top, back) }, // 7
+            };
+
+            // Set up the index information for the 12 faces
+            cube.Faces[0].Indices = new ushort[]
             {
                 // Left faces
                 lefttopfront,     lefttopback,      leftbottomback,   // 0

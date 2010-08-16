@@ -309,34 +309,13 @@ namespace Simian.Protocols.Linden.Packets
                         // Asset upload finished
                         if (type != AssetType.LSLBytecode)
                         {
-                            bool store = true;
-
                             lock (currentUploads)
                                 currentUploads.Remove(xfer.XferID.ID);
 
-                            if (type == AssetType.Texture)
-                            {
-                                string layerBoundariesHeader = GetLayerBoundariesHeader(asset.ID, asset.Data);
-
-                                if (!String.IsNullOrEmpty(layerBoundariesHeader))
-                                {
-                                    asset.ExtraHeaders = new Dictionary<string, string>(1);
-                                    asset.ExtraHeaders["X-JPEG2000-Layers"] = layerBoundariesHeader;
-                                }
-                                else
-                                {
-                                    m_log.ErrorFormat("Ignoring unparseable texture upload {0} ({1} bytes)", asset.ID, asset.Data.Length);
-                                    store = false;
-                                }
-                            }
-
                             m_log.DebugFormat("Completed Xfer upload of asset {0} ({1})", asset.ID, asset.ContentType);
 
-                            if (store)
-                            {
-                                if (!m_assets.StoreAsset(asset))
-                                    m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
-                            }
+                            if (!m_assets.StoreAsset(asset))
+                                m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
                         }
                         else
                         {
@@ -620,64 +599,6 @@ namespace Simian.Protocols.Linden.Packets
             }
 
             return false;
-        }
-
-        private string GetLayerBoundariesHeader(UUID textureID, byte[] textureData)
-        {
-            OpenMetaverse.Imaging.OpenJPEG.J2KLayerInfo[] layers = null;
-
-            // Decode this texture and get layer boundaries before storing it
-            using (MemoryStream stream = new MemoryStream(textureData))
-            {
-                try
-                {
-                    List<int> layerStarts = CSJ2K.J2kImage.GetLayerBoundaries(stream);
-
-                    if (layerStarts != null && layerStarts.Count > 0)
-                    {
-                        layers = new OpenMetaverse.Imaging.OpenJPEG.J2KLayerInfo[layerStarts.Count];
-
-                        for (int i = 0; i < layerStarts.Count; i++)
-                        {
-                            OpenMetaverse.Imaging.OpenJPEG.J2KLayerInfo layer = new OpenMetaverse.Imaging.OpenJPEG.J2KLayerInfo();
-
-                            if (i == 0)
-                                layer.Start = 0;
-                            else
-                                layer.Start = layerStarts[i];
-
-                            if (i == layerStarts.Count - 1)
-                                layer.End = textureData.Length;
-                            else
-                                layer.End = layerStarts[i + 1] - 1;
-
-                            layers[i] = layer;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    m_log.Warn("Error decoding uploaded texture " + textureID + ": " + ex.Message);
-                    layers = null;
-                }
-            }
-
-            if (layers != null)
-            {
-                StringBuilder header = new StringBuilder();
-
-                for (int i = 0; i < layers.Length; i++)
-                {
-                    OpenMetaverse.Imaging.OpenJPEG.J2KLayerInfo layer = layers[i];
-                    header.AppendFormat("{0}-{1};", layer.Start, layer.End);
-                }
-
-                return header.ToString();
-            }
-            else
-            {
-                return null;
-            }
         }
     }
 }

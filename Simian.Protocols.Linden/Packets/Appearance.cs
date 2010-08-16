@@ -39,13 +39,13 @@ namespace Simian.Protocols.Linden.Packets
     [SceneModule("Appearance")]
     public class Appearance : ISceneModule
     {
-        const string AVATAR_APPEARANCE = "AvatarAppearance";
+        public const string AVATAR_APPEARANCE = "AvatarAppearance";
 
         /// <summary>Magic UUID for combining with an agent ID to create an event ID for appearances</summary>
-        private static readonly UUID APPEARANCE_EVENT_ID = new UUID("7e661f48-4e10-4657-b3ab-6e69073db48b");
-        private static readonly Primitive.TextureEntry DEFAULT_TEXTURE_ENTRY = new Primitive.TextureEntry(OpenMetaverse.AppearanceManager.DEFAULT_AVATAR_TEXTURE);
-        private static readonly byte[] DEFAULT_VISUAL_PARAMS = new byte[218];
-        private static readonly byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
+        public static readonly UUID APPEARANCE_EVENT_ID = new UUID("7e661f48-4e10-4657-b3ab-6e69073db48b");
+        public static readonly Primitive.TextureEntry DEFAULT_TEXTURE_ENTRY = new Primitive.TextureEntry(OpenMetaverse.AppearanceManager.DEFAULT_AVATAR_TEXTURE);
+        public static readonly byte[] DEFAULT_VISUAL_PARAMS = new byte[218];
+        public static readonly byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
@@ -148,6 +148,7 @@ namespace Simian.Protocols.Linden.Packets
                 agent.VisualParams = visualParams;
                 agent.UpdateHeight();
 
+                // Create the event that generates an AvatarAppearance packet for this agent
                 m_scene.CreateInterestListEvent(new InterestListEvent
                 (
                     UUID.Combine(agent.ID, APPEARANCE_EVENT_ID),
@@ -164,76 +165,143 @@ namespace Simian.Protocols.Linden.Packets
 
         private void AgentWearablesRequestHandler(Packet packet, LLAgent agent)
         {
-            // This beast of a function tries to fetch the user profile data from the user service and get the "wearables"
-            // inventory items associated with this account. AssetIDs for each inventory item are fetched from the inventory
-            // service, and the whole mess is converted into an AgentWearablesUpdate packet
-
-            // Note: This Wearables should be in the Variable Data field "ExtraData" in the User record
-
             AgentWearablesUpdatePacket update = new AgentWearablesUpdatePacket();
             update.AgentData.AgentID = agent.ID;
 
             User user;
-
-            if (m_userClient != null && m_inventoryClient != null && m_userClient.TryGetUser(agent.ID, out user))
+            if (m_userClient != null && m_userClient.TryGetUser(agent.ID, out user))
             {
-                OSDMap wearablesMap = user.GetField("wearables") as OSDMap;
+                OSDMap appearanceMap = user.GetField("LLAppearance") as OSDMap;
 
-                if (wearablesMap != null)
+                if (appearanceMap != null)
                 {
-                    List<UUID> requestIDs = new List<UUID>();
-                    Dictionary<UUID, WearableType> wornItems = new Dictionary<UUID,WearableType>();
-                    Dictionary<WearableType, Tuple<UUID, UUID>> wornItemsFinal = new Dictionary<WearableType, Tuple<UUID, UUID>>();
+                    Dictionary<WearableType, UUID> items = new Dictionary<WearableType, UUID>();
+                    Dictionary<WearableType, UUID> assets = new Dictionary<WearableType, UUID>();
 
-                    foreach (KeyValuePair<string, OSD> kvp in wearablesMap)
+                    foreach (KeyValuePair<string, OSD> kvp in appearanceMap)
                     {
-                        WearableType type = (WearableType)Int32.Parse(kvp.Key);
-                        UUID itemID = kvp.Value.AsUUID();
-
-                        if (itemID != UUID.Zero)
+                        UUID id = kvp.Value.AsUUID();
+                        if (id != UUID.Zero)
                         {
-                            requestIDs.Add(itemID);
-                            wornItems[itemID] = type;
+                            #region LLAppearance Parsing
+
+                            switch (kvp.Key)
+                            {
+                                case "ShapeItem":
+                                    items[WearableType.Shape] = id;
+                                    break;
+                                case "SkinItem":
+                                    items[WearableType.Skin] = id;
+                                    break;
+                                case "HairItem":
+                                    items[WearableType.Hair] = id;
+                                    break;
+                                case "EyesItem":
+                                    items[WearableType.Eyes] = id;
+                                    break;
+                                case "ShirtItem":
+                                    items[WearableType.Shirt] = id;
+                                    break;
+                                case "PantsItem":
+                                    items[WearableType.Pants] = id;
+                                    break;
+                                case "ShoesItem":
+                                    items[WearableType.Shoes] = id;
+                                    break;
+                                case "SocksItem":
+                                    items[WearableType.Socks] = id;
+                                    break;
+                                case "JacketItem":
+                                    items[WearableType.Jacket] = id;
+                                    break;
+                                case "GlovesItem":
+                                    items[WearableType.Gloves] = id;
+                                    break;
+                                case "UndershirtItem":
+                                    items[WearableType.Undershirt] = id;
+                                    break;
+                                case "UnderpantsItem":
+                                    items[WearableType.Underpants] = id;
+                                    break;
+                                case "SkirtItem":
+                                    items[WearableType.Skirt] = id;
+                                    break;
+                                case "AlphaItem":
+                                    items[WearableType.Alpha] = id;
+                                    break;
+                                case "TattooItem":
+                                    items[WearableType.Tattoo] = id;
+                                    break;
+
+                                case "ShapeAsset":
+                                    assets[WearableType.Shape] = id;
+                                    break;
+                                case "SkinAsset":
+                                    assets[WearableType.Skin] = id;
+                                    break;
+                                case "HairAsset":
+                                    assets[WearableType.Hair] = id;
+                                    break;
+                                case "EyesAsset":
+                                    assets[WearableType.Eyes] = id;
+                                    break;
+                                case "ShirtAsset":
+                                    assets[WearableType.Shirt] = id;
+                                    break;
+                                case "PantsAsset":
+                                    assets[WearableType.Pants] = id;
+                                    break;
+                                case "ShoesAsset":
+                                    assets[WearableType.Shoes] = id;
+                                    break;
+                                case "SocksAsset":
+                                    assets[WearableType.Socks] = id;
+                                    break;
+                                case "JacketAsset":
+                                    assets[WearableType.Jacket] = id;
+                                    break;
+                                case "GlovesAsset":
+                                    assets[WearableType.Gloves] = id;
+                                    break;
+                                case "UndershirtAsset":
+                                    assets[WearableType.Undershirt] = id;
+                                    break;
+                                case "UnderpantsAsset":
+                                    assets[WearableType.Underpants] = id;
+                                    break;
+                                case "SkirtAsset":
+                                    assets[WearableType.Skirt] = id;
+                                    break;
+                                case "AlphaAsset":
+                                    assets[WearableType.Alpha] = id;
+                                    break;
+                                case "TattooAsset":
+                                    assets[WearableType.Tattoo] = id;
+                                    break;
+                            }
+
+                            #endregion LLAppearance Parsing
                         }
                     }
 
-                    IDictionary<UUID, UUID> itemsToAssetIDs;
-                    if (m_inventoryClient.TryGetAssetIDs(agent.ID, requestIDs.ToArray(), out itemsToAssetIDs))
+                    int i = 0;
+                    foreach (KeyValuePair<WearableType, UUID> kvp in items)
                     {
-                        foreach (KeyValuePair<UUID, UUID> kvp in itemsToAssetIDs)
-                        {
-                            WearableType type;
-                            if (wornItems.TryGetValue(kvp.Key, out type))
-                                wornItemsFinal[type] = new Tuple<UUID, UUID>(kvp.Key, kvp.Value);
-                        }
-
-                        update.WearableData = new AgentWearablesUpdatePacket.WearableDataBlock[wornItemsFinal.Count];
-
-                        int i = 0;
-                        foreach (KeyValuePair<WearableType, Tuple<UUID, UUID>> kvp in wornItemsFinal)
-                        {
-                            update.WearableData[i] = new AgentWearablesUpdatePacket.WearableDataBlock();
-                            update.WearableData[i].WearableType = (byte)kvp.Key;
-                            update.WearableData[i].ItemID = kvp.Value.Item1;
-                            update.WearableData[i].AssetID = kvp.Value.Item2;
-                            ++i;
-                        }
-                    }
-                    else
-                    {
-                        m_log.Warn("Failed to fetch wearable assetIDs for " + agent.Name);
+                        update.WearableData[i] = new AgentWearablesUpdatePacket.WearableDataBlock();
+                        update.WearableData[i].WearableType = (byte)kvp.Key;
+                        update.WearableData[i].ItemID = kvp.Value;
+                        assets.TryGetValue(kvp.Key, out update.WearableData[i].AssetID);
+                        ++i;
                     }
                 }
                 else
                 {
-                    m_log.Warn("User record does not contain a wearables map in ExtraData, Appearance will not be set");
+                    m_log.Warn("User record does not contain an LLAppearance entry, appearance will not be set");
                 }
             }
 
             if (update.WearableData == null)
-            {
                 update.WearableData = new AgentWearablesUpdatePacket.WearableDataBlock[0];
-            }
 
             m_log.DebugFormat("Sending info about {0} wearables to {1}", update.WearableData.Length, agent.Name);
 
@@ -243,26 +311,123 @@ namespace Simian.Protocols.Linden.Packets
 
         private void AgentIsNowWearingHandler(Packet packet, LLAgent agent)
         {
+            // This odd function takes the incoming map of WearableType -> ItemID, converts it to 
+            // the LLAppearance format of string -> ItemID, fetches all of the wearable inventory 
+            // items, and converts them into the LLAppearance format of string -> AssetID before 
+            // updating the user's LLAppearance data
+
             AgentIsNowWearingPacket wearing = (AgentIsNowWearingPacket)packet;
 
-            OSDMap wearableMap = new OSDMap();
+            OSDMap appearanceMap = new OSDMap();
+            List<UUID> requestIDs = new List<UUID>(wearing.WearableData.Length);
+            Dictionary<UUID, string> wornItems = new Dictionary<UUID, string>();
             int count = 0;
 
+            // Put the ItemIDs in appearanceMap and requestIDs
             for (int i = 0; i < wearing.WearableData.Length; i++)
             {
                 AgentIsNowWearingPacket.WearableDataBlock block = wearing.WearableData[i];
-                wearableMap[block.WearableType.ToString()] = OSD.FromUUID(block.ItemID);
+
+                #region WearableType Conversion
+
+                switch ((WearableType)block.WearableType)
+                {
+                    case WearableType.Shape:
+                        appearanceMap["ShapeItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "ShapeAsset";
+                        break;
+                    case WearableType.Skin:
+                        appearanceMap["SkinItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "SkinAsset";
+                        break;
+                    case WearableType.Hair:
+                        appearanceMap["HairItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "HairAsset";
+                        break;
+                    case WearableType.Eyes:
+                        appearanceMap["EyesItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "EyesAsset";
+                        break;
+                    case WearableType.Shirt:
+                        appearanceMap["ShirtItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "ShirtAsset";
+                        break;
+                    case WearableType.Pants:
+                        appearanceMap["PantsItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "PantsAsset";
+                        break;
+                    case WearableType.Shoes:
+                        appearanceMap["ShoesItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "ShoesAsset";
+                        break;
+                    case WearableType.Socks:
+                        appearanceMap["SocksItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "SocksAsset";
+                        break;
+                    case WearableType.Jacket:
+                        appearanceMap["JacketItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "JacketAsset";
+                        break;
+                    case WearableType.Gloves:
+                        appearanceMap["GlovesItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "GlovesAsset";
+                        break;
+                    case WearableType.Undershirt:
+                        appearanceMap["UndershirtItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "UndershirtAsset";
+                        break;
+                    case WearableType.Underpants:
+                        appearanceMap["UnderpantsItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "UnderpantsAsset";
+                        break;
+                    case WearableType.Skirt:
+                        appearanceMap["SkirtItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "SkirtAsset";
+                        break;
+                    case WearableType.Alpha:
+                        appearanceMap["AlphaItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "AlphaAsset";
+                        break;
+                    case WearableType.Tattoo:
+                        appearanceMap["TattooItem"] =  OSD.FromUUID(block.ItemID);
+                        wornItems[block.ItemID] = "TattooAsset";
+                        break;
+                }
+
+                #endregion WearableType Conversion
 
                 if (block.ItemID != UUID.Zero)
+                {
+                    requestIDs.Add(block.ItemID);
                     ++count;
+                }
             }
 
-            m_log.Debug("Updating agent wearables, new count: " + count);
+            m_log.Debug("Updating agent wearables for " + agent.Name + ", new count: " + count);
+
+            // Fetch all of the AssetIDs for inventory items listed in requestIDs
+            IDictionary<UUID, UUID> itemsToAssetIDs;
+            if (m_inventoryClient != null && m_inventoryClient.TryGetAssetIDs(agent.ID, requestIDs.ToArray(), out itemsToAssetIDs))
+            {
+                foreach (KeyValuePair<UUID, UUID> kvp in itemsToAssetIDs)
+                {
+                    // Put the AssetIDs in appearanceMap
+                    string wearableAssetKey;
+                    if (wornItems.TryGetValue(kvp.Key, out wearableAssetKey))
+                        appearanceMap[wearableAssetKey] = OSD.FromUUID(kvp.Value);
+                }
+
+                m_log.Debug("Did " + itemsToAssetIDs.Count + " ItemID -> AssetID lookups for " + agent.Name);
+            }
+            else
+            {
+                m_log.Warn("Failed to resolve ItemIDs to AssetIDs for " + agent.Name);
+            }
 
             if (m_userClient != null)
-            {
-                m_userClient.UpdateUserField(agent.ID, "wearables", wearableMap);
-            }
+                m_userClient.UpdateUserFields(agent.ID, new OSDMap { { "LLAppearance", appearanceMap } });
+            else
+                m_log.Warn("Cannot save agent appearance without an IUserClient");
         }
 
         private void AgentCachedTextureHandler(Packet packet, LLAgent agent)

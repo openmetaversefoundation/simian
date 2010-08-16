@@ -44,7 +44,7 @@ namespace Simian
 
         static void Main(string[] args)
         {
-            bool coloredLogging = false;
+            bool coloredLogging = true;
             bool printHelp = false;
             bool printVersion = false;
 
@@ -55,7 +55,7 @@ namespace Simian
 
             Mono.Options.OptionSet set = new Mono.Options.OptionSet()
             {
-                { "color", "Use colored console logging", v => coloredLogging = true },
+                { "nocolor", "Disable colored console logging", v => coloredLogging = false },
                 { "h|?|help", "Shows launch options", v => printHelp = true },
                 { "version", "Show version information", v => printVersion = true }
             };

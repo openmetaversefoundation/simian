@@ -72,6 +72,19 @@ namespace Simian.Connectors.Standalone
 
         #region IGridClient Members
 
+        public bool TryGetScene(UUID sceneID, out SceneInfo sceneInfo)
+        {
+            IScene scene;
+            if (m_sceneFactory != null && m_sceneFactory.TryGetScene(sceneID, out scene))
+            {
+                sceneInfo = SceneInfo.FromScene(scene);
+                return true;
+            }
+
+            sceneInfo = null;
+            return false;
+        }
+
         public bool TryGetSceneAt(Vector3d position, bool onlyEnabled, out SceneInfo sceneInfo)
         {
             IScene[] scenes = null;

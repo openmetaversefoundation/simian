@@ -58,6 +58,7 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.AddPacketHandler(PacketType.UUIDGroupNameRequest, UUIDGroupNameRequestHandler);
                 m_udp.AddPacketHandler(PacketType.AvatarPropertiesRequest, AvatarPropertiesRequestHandler);
                 m_udp.AddPacketHandler(PacketType.AvatarPropertiesUpdate, AvatarPropertiesUpdateHandler);
+                m_udp.AddPacketHandler(PacketType.AvatarInterestsUpdate, AvatarInterestsUpdateHandler);
             }
         }
 
@@ -70,6 +71,7 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.RemovePacketHandler(PacketType.UUIDGroupNameRequest, UUIDGroupNameRequestHandler);
                 m_udp.RemovePacketHandler(PacketType.AvatarPropertiesRequest, AvatarPropertiesRequestHandler);
                 m_udp.RemovePacketHandler(PacketType.AvatarPropertiesUpdate, AvatarPropertiesUpdateHandler);
+                m_udp.RemovePacketHandler(PacketType.AvatarInterestsUpdate, AvatarInterestsUpdateHandler);
             }
         }
 
@@ -166,11 +168,13 @@ namespace Simian.Protocols.Linden.Packets
             if (m_userClient != null && m_userClient.TryGetUser(request.AgentData.AvatarID, out user))
             {
                 SendAvatarProperties(agent, request.AgentData.AvatarID, user);
+                SendAvatarInterests(agent, request.AgentData.AvatarID, user);
             }
             else
             {
                 m_log.Warn("Could not find user " + request.AgentData.AvatarID + ", returning empty profile to " + agent.Name);
                 SendAvatarProperties(agent, request.AgentData.AvatarID, null);
+                SendAvatarInterests(agent, request.AgentData.AvatarID, null);
             }
         }
 
@@ -181,21 +185,49 @@ namespace Simian.Protocols.Linden.Packets
             User user;
             if (m_userClient != null && m_userClient.TryGetUser(agent.ID, out user))
             {
-                user.SetField("about", OSD.FromString(Utils.BytesToString(update.PropertiesData.AboutText)));
-                user.SetField("allow_publish", OSD.FromBoolean(update.PropertiesData.AllowPublish));
-                user.SetField("fl_about", OSD.FromString(Utils.BytesToString(update.PropertiesData.FLAboutText)));
-                user.SetField("fl_image", OSD.FromUUID(update.PropertiesData.FLImageID));
-                user.SetField("image", OSD.FromUUID(update.PropertiesData.ImageID));
-                user.SetField("allow_mature_publish", OSD.FromBoolean(update.PropertiesData.MaturePublish));
-                user.SetField("url", OSD.FromString(Utils.BytesToString(update.PropertiesData.ProfileURL)));
+                OSDMap updates = new OSDMap
+                {
+                    { "About", OSD.FromString(Utils.BytesToString(update.PropertiesData.AboutText)) },
+                    { "AllowPublish", OSD.FromBoolean(update.PropertiesData.AllowPublish) },
+                    { "FLAbout", OSD.FromString(Utils.BytesToString(update.PropertiesData.FLAboutText)) },
+                    { "FLImage", OSD.FromUUID(update.PropertiesData.FLImageID) },
+                    { "Image", OSD.FromUUID(update.PropertiesData.ImageID) },
+                    { "AllowMaturePublish", OSD.FromBoolean(update.PropertiesData.MaturePublish) },
+                    { "URL", OSD.FromString(Utils.BytesToString(update.PropertiesData.ProfileURL)) }
+                };
 
-                m_userClient.UpdateUser(user);
+                m_userClient.UpdateUserFields(agent.ID, updates);
                 SendAvatarProperties(agent, agent.ID, user);
             }
             else
             {
                 m_log.Warn("Could not find user " + agent.ID + ", not updating profile for " + agent.Name);
                 SendAvatarProperties(agent, agent.ID, null);
+            }
+        }
+
+        private void AvatarInterestsUpdateHandler(Packet packet, LLAgent agent)
+        {
+            AvatarInterestsUpdatePacket update = (AvatarInterestsUpdatePacket)packet;
+
+            User user;
+            if (m_userClient != null && m_userClient.TryGetUser(agent.ID, out user))
+            {
+                OSDMap map = new OSDMap
+                {
+                    { "WantMask", OSD.FromInteger((int)update.PropertiesData.WantToMask) },
+                    { "WantText", OSD.FromString(Utils.BytesToString(update.PropertiesData.WantToText)) },
+                    { "SkillsMask", OSD.FromInteger((int)update.PropertiesData.SkillsMask) },
+                    { "SkillsText", OSD.FromString(Utils.BytesToString(update.PropertiesData.SkillsText)) },
+                    { "Languages", OSD.FromString(Utils.BytesToString(update.PropertiesData.LanguagesText)) }
+                };
+
+                m_userClient.UpdateUserFields(agent.ID, new OSDMap { { "LLInterests", map } });
+            }
+            else
+            {
+                m_log.Warn("Could not find user " + agent.ID + ", not updating profile interests for " + agent.Name);
+                SendAvatarInterests(agent, agent.ID, null);
             }
         }
 
@@ -213,15 +245,15 @@ namespace Simian.Protocols.Linden.Packets
                 if (user.AccessLevel > 0)
                     profileFlags |= ProfileFlags.Identified;
 
-                reply.PropertiesData.AboutText = Utils.StringToBytes(user.GetField("about").AsString());
-                reply.PropertiesData.BornOn = Utils.StringToBytes(user.GetField("creation_date").AsDate().ToString("M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture));
+                reply.PropertiesData.AboutText = Utils.StringToBytes(user.GetField("About").AsString());
+                reply.PropertiesData.BornOn = Utils.StringToBytes(user.GetField("CreationDate").AsDate().ToString("M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture));
                 reply.PropertiesData.CharterMember = (user.AccessLevel >= 200) ? Utils.StringToBytes("Operator") : Utils.EmptyBytes;
-                reply.PropertiesData.FLAboutText = Utils.StringToBytes(user.GetField("fl_about").AsString());
+                reply.PropertiesData.FLAboutText = Utils.StringToBytes(user.GetField("FLAbout").AsString());
                 reply.PropertiesData.Flags = (uint)profileFlags;
-                reply.PropertiesData.FLImageID = user.GetField("fl_image").AsUUID();
-                reply.PropertiesData.ImageID = user.GetField("image").AsUUID();
-                reply.PropertiesData.PartnerID = user.GetField("partner").AsUUID();
-                reply.PropertiesData.ProfileURL = Utils.StringToBytes(user.GetField("url").AsString());
+                reply.PropertiesData.FLImageID = user.GetField("FLImage").AsUUID();
+                reply.PropertiesData.ImageID = user.GetField("Image").AsUUID();
+                reply.PropertiesData.PartnerID = user.GetField("Partner").AsUUID();
+                reply.PropertiesData.ProfileURL = Utils.StringToBytes(user.GetField("URL").AsString());
             }
             else
             {
@@ -230,6 +262,31 @@ namespace Simian.Protocols.Linden.Packets
                 reply.PropertiesData.CharterMember = Utils.EmptyBytes;
                 reply.PropertiesData.FLAboutText = Utils.EmptyBytes;
                 reply.PropertiesData.ProfileURL = Utils.EmptyBytes;
+            }
+
+            m_udp.SendPacket(agent, reply, ThrottleCategory.Task, false);
+        }
+
+        private void SendAvatarInterests(LLAgent agent, UUID avatarID, User user)
+        {
+            AvatarInterestsReplyPacket reply = new AvatarInterestsReplyPacket();
+            reply.AgentData.AgentID = agent.ID;
+            reply.AgentData.AvatarID = avatarID;
+            OSDMap interests;
+
+            if (user != null && (interests = user.GetField("LLInterests") as OSDMap) != null)
+            {
+                reply.PropertiesData.LanguagesText = Utils.StringToBytes(interests["Languages"].AsString());
+                reply.PropertiesData.SkillsMask = interests["SkillsMask"].AsUInteger();
+                reply.PropertiesData.SkillsText = Utils.StringToBytes(interests["SkillsText"].AsString());
+                reply.PropertiesData.WantToMask = interests["WantMask"].AsUInteger();
+                reply.PropertiesData.WantToText = Utils.StringToBytes(interests["WantText"].AsString());
+            }
+            else
+            {
+                reply.PropertiesData.LanguagesText = Utils.EmptyBytes;
+                reply.PropertiesData.SkillsText = Utils.EmptyBytes;
+                reply.PropertiesData.WantToText = Utils.EmptyBytes;
             }
 
             m_udp.SendPacket(agent, reply, ThrottleCategory.Task, false);

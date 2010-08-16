@@ -28,6 +28,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Threading;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Assets;
@@ -37,17 +38,30 @@ namespace Simian.Protocols.Linden
     [SceneModule("OARLoader")]
     public class OARLoader : ISceneModule
     {
+        private static readonly int ASSET_STORE_THREADS = Environment.ProcessorCount + 1;
+
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IScene m_scene;
+        private IScheduler m_scheduler;
         private IPrimMesher m_primMesher;
         private IAssetClient m_assetClient;
         private ITerrain m_terrain;
         private float m_lastPercent;
+        private long m_lastBytes;
+        private DateTime m_lastTimestamp;
+        private Semaphore m_assetLoadSemaphore = new Semaphore(ASSET_STORE_THREADS, ASSET_STORE_THREADS);
 
         public void Start(IScene scene)
         {
             m_scene = scene;
+
+            m_scheduler = m_scene.Simian.GetAppModule<IScheduler>();
+            if (m_scheduler == null)
+            {
+                m_log.Error("OARLoader requires an IScheduler");
+                return;
+            }
 
             m_assetClient = m_scene.Simian.GetAppModule<IAssetClient>();
             if (m_assetClient == null)
@@ -97,6 +111,8 @@ namespace Simian.Protocols.Linden
                 try
                 {
                     m_lastPercent = 0f;
+                    m_lastBytes = 0;
+                    m_lastTimestamp = DateTime.UtcNow;
                     OarFile.UnpackageArchive(filename, AssetLoadedHandler, TerrainLoadedHandler, ObjectLoadedHandler);
                 }
                 catch (Exception ex)
@@ -108,16 +124,35 @@ namespace Simian.Protocols.Linden
 
         private void AssetLoadedHandler(OpenMetaverse.Assets.Asset asset, long bytesRead, long totalBytes)
         {
-            m_assetClient.StoreAsset(new Asset
-            {
-                ContentType = LLUtil.LLAssetTypeToContentType((int)asset.AssetType),
-                CreationDate = DateTime.UtcNow,
-                CreatorID = UUID.Zero,
-                Data = asset.AssetData,
-                ID = asset.AssetID
-            });
+            // Asynchronously filter and store the asset
+            bool doRelease = m_assetLoadSemaphore.WaitOne(1000 * 10);
+            if (!doRelease)
+                m_log.Error("Timed out waiting for the previous OAR asset load to complete");
 
-            //m_log.DebugFormat("Loaded asset {0} ({1}), {2} bytes", asset.AssetID, asset.AssetType, asset.AssetData.Length);
+            m_scheduler.FireAndForget(
+                delegate(object o)
+                {
+                    try
+                    {
+                        m_assetClient.StoreAsset(new Asset
+                        {
+                            ContentType = LLUtil.LLAssetTypeToContentType((int)asset.AssetType),
+                            CreationDate = DateTime.UtcNow,
+                            CreatorID = UUID.Zero,
+                            Data = asset.AssetData,
+                            ID = asset.AssetID
+                        });
+
+                        //m_log.DebugFormat("Loaded asset {0} ({1}), {2} bytes", asset.AssetID, asset.AssetType, asset.AssetData.Length);
+                    }
+                    finally
+                    {
+                        if (doRelease)
+                            m_assetLoadSemaphore.Release();
+                    }
+                }, null
+            );
+
             PrintProgress(bytesRead, totalBytes);
         }
 
@@ -167,8 +202,17 @@ namespace Simian.Protocols.Linden
             float percent = (float)bytesRead / (float)totalBytes;
             if (percent > m_lastPercent + 0.01f)
             {
-                m_log.Info((int)(percent * 100f) + "% complete loading OAR file");
+                DateTime now = DateTime.UtcNow;
+
+                double kb = (bytesRead - m_lastBytes) / 1024d;
+                double seconds = (now - m_lastTimestamp).TotalSeconds;
+                double kbs = kb / seconds;
+
+                m_log.Info((int)(percent * 100f) + "% complete loading OAR file, " + kbs.ToString("N2") + " KB/sec");
+                
                 m_lastPercent = percent;
+                m_lastBytes = bytesRead;
+                m_lastTimestamp = now;
             }
         }
 

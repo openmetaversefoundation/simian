@@ -110,14 +110,14 @@ namespace Simian
 
         public bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data)
         {
-            string filename = GetFilename(dataID, contentType);
-            return AddOrUpdate(filename, data);
+            return AddOrUpdateAsset(dataID, contentType, data, false);
         }
 
-        public bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data, TimeSpan expiration)
+        public bool AddOrUpdateAsset(UUID dataID, string contentType, byte[] data, bool temporary)
         {
-            // TODO: Store the expiration time
-            string filename = GetTemporaryFilename(dataID, contentType);
+            string filename = (temporary)
+                ? GetTemporaryFilename(dataID, contentType)
+                : GetFilename(dataID, contentType);
             return AddOrUpdate(filename, data);
         }
 
@@ -133,20 +133,21 @@ namespace Simian
 
         public bool TryGetAsset(UUID dataID, string contentType, out byte[] data)
         {
-            string temporaryFilename = GetTemporaryFilename(dataID, contentType);
             string filename = GetFilename(dataID, contentType);
 
             m_rwLock.EnterReadLock();
             try
             {
+                if (File.Exists(filename))
+                {
+                    data = File.ReadAllBytes(filename);
+                    return true;
+                }
+
+                string temporaryFilename = GetTemporaryFilename(dataID, contentType);
                 if (File.Exists(temporaryFilename))
                 {
                     data = File.ReadAllBytes(temporaryFilename);
-                    return true;
-                }
-                else if (File.Exists(filename))
-                {
-                    data = File.ReadAllBytes(filename);
                     return true;
                 }
             }
@@ -298,7 +299,7 @@ namespace Simian
             }
             else
             {
-                m_log.Warn("Attempted to remove missing serialized data file " + filename);
+                //m_log.Debug("Attempted to remove missing serialized data file " + filename);
             }
         }
 

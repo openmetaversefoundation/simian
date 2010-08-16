@@ -33,5 +33,6 @@ namespace Simian.Protocols.Linden
     public interface IPrimMesher
     {
         PhysicsMesh GetPhysicsMesh(LLPrimitive prim);
+        RenderingMesh GetRenderingMesh(LLPrimitive prim, DetailLevel lod);
     }
 }

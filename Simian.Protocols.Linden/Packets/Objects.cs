@@ -57,9 +57,11 @@ namespace Simian.Protocols.Linden.Packets
         const int CHANGED_TEXTURE = 16;
         const int CHANGED_LINK = 32;
 
-        #endregion Constants
-
         private static readonly UUID PLYWOOD_TEXTURE = new UUID("89556747-24cb-43ed-920b-47caed15465f");
+
+        private static readonly Quaternion INVALID_ROT = new Quaternion(0f, 0f, 0f, 0f);
+
+        #endregion Constants
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
@@ -1554,6 +1556,12 @@ namespace Simian.Protocols.Linden.Packets
             if (collisionPlane == Vector4.Zero)
                 collisionPlane = Vector4.UnitW;
 
+            if (presence.RelativeRotation == INVALID_ROT)
+            {
+                m_log.Warn("Correcting an invalid rotation for " + presence.Name + " (" + presence.ID + ")");
+                presence.RelativeRotation = Quaternion.Identity;
+            }
+
             collisionPlane.ToBytes(objectData, 0);
             presence.RelativePosition.ToBytes(objectData, 16);
             //data.Velocity.ToBytes(objectData, 28);
@@ -1604,6 +1612,12 @@ namespace Simian.Protocols.Linden.Packets
         private ObjectUpdatePacket.ObjectDataBlock CreateObjectUpdateBlock(ISceneEntity entity, IScenePresence sendingTo)
         {
             Primitive prim;
+
+            if (entity.RelativeRotation == INVALID_ROT)
+            {
+                m_log.Warn("Correcting an invalid rotation for " + entity.Name + " (" + entity.ID + ")");
+                entity.RelativeRotation = Quaternion.Identity;
+            }
 
             #region LLPrimitive / Generic Support
 
