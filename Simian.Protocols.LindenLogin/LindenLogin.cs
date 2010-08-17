@@ -274,6 +274,14 @@ namespace Simian.Protocols.LindenLogin
                 }
             }
 
+            // Try to find any valid region to start in
+            if (sceneInfo == null)
+            {
+                m_gridClient.TryGetSceneNear(Vector3d.Zero, true, out sceneInfo);
+                if (sceneInfo != null)
+                    sceneStartPosition = new Vector3((sceneInfo.MinPosition + sceneInfo.MaxPosition) * 0.5d - sceneInfo.MinPosition);
+            }
+
             if (sceneInfo != null)
             {
                 // Send a rez_avatar/request message to this scene

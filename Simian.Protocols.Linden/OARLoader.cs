@@ -122,6 +122,10 @@ namespace Simian.Protocols.Linden
             }
         }
 
+        private void NullAssetLoadedHandler(OpenMetaverse.Assets.Asset asset, long bytesRead, long totalBytes)
+        {
+        }
+
         private void AssetLoadedHandler(OpenMetaverse.Assets.Asset asset, long bytesRead, long totalBytes)
         {
             // Asynchronously filter and store the asset
@@ -170,6 +174,10 @@ namespace Simian.Protocols.Linden
             }
 
             PrintProgress(bytesRead, totalBytes);
+        }
+
+        private void NullObjectLoadedHandler(AssetPrim linkset, long bytesRead, long totalBytes)
+        {
         }
 
         private void ObjectLoadedHandler(AssetPrim linkset, long bytesRead, long totalBytes)

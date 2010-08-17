@@ -81,8 +81,11 @@ namespace Simian.Connectors.Standalone
                 Email = email,
                 AccessLevel = accessLevel
             };
-            foreach (KeyValuePair<string, OSD> kvp in extradata)
-                user.SetField(kvp.Key, kvp.Value);
+            if (extradata != null)
+            {
+                foreach (KeyValuePair<string, OSD> kvp in extradata)
+                    user.SetField(kvp.Key, kvp.Value);
+            }
 
             return CreateUser(user);
         }

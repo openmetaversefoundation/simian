@@ -93,6 +93,11 @@ namespace Simian.Connectors.Remote
 
         public bool TryGetScene(UUID sceneID, out SceneInfo sceneInfo)
         {
+            // Cache check
+            if (m_sceneCache.TryGetValue(sceneID, out sceneInfo))
+                return true;
+
+            // Remote fetch
             NameValueCollection requestArgs = new NameValueCollection
             {
                 { "RequestMethod", "GetScene" },

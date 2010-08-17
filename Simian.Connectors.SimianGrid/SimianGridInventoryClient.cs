@@ -35,8 +35,8 @@ using OpenMetaverse.StructuredData;
 
 namespace Simian.Connectors.Standalone
 {
-    [ApplicationModule("StandaloneInventoryClient")]
-    public class StandaloneInventoryClient : IInventoryClient, IApplicationModule
+    [ApplicationModule("SimianGridInventoryClient")]
+    public class SimianGridInventoryClient : IInventoryClient, IApplicationModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 

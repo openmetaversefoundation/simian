@@ -404,6 +404,7 @@
       <Reference name="Tests.Simian"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
+        <Match pattern="*.j2c" recurse="false" buildAction="Content" copyToOutput="Always"/>
       </Files>
     </Project>
 

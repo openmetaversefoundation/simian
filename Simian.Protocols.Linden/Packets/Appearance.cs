@@ -284,6 +284,7 @@ namespace Simian.Protocols.Linden.Packets
                         }
                     }
 
+                    update.WearableData = new AgentWearablesUpdatePacket.WearableDataBlock[items.Count];
                     int i = 0;
                     foreach (KeyValuePair<WearableType, UUID> kvp in items)
                     {
