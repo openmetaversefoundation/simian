@@ -29,7 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Text;
 using System.Threading;
 using log4net;
 using Nini.Config;
@@ -50,7 +50,7 @@ namespace Simian
         private ThrottledQueue<string, SerializedData> m_pendingSerialization;
         private string m_storeDirectory;
         private string m_tempStoreDirectory;
-        private string m_invalidPathCharsRegex;
+        
         private System.Threading.ReaderWriterLockSlim m_rwLock = new System.Threading.ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
 
         public bool Start(Simian simian)
@@ -59,10 +59,7 @@ namespace Simian
 
             int serializeSeconds = DEFAULT_SERIALIZATION_INTERVAL;
 
-            // Regular expression to replace invalid path and filename characters
-            m_invalidPathCharsRegex = "[" + Regex.Escape(new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars())) + "]";
-
-            string executingDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string executingDir = Util.ExecutingDirectory();
             m_storeDirectory = Path.Combine(executingDir, DEFAULT_STORE_DIRECTORY);
 
             IConfig config = simian.Config.Configs["FileDataStore"];
@@ -344,7 +341,7 @@ namespace Simian
 
         private string GetFilename(UUID dataID, string contentType)
         {
-            string path = Regex.Replace(contentType, m_invalidPathCharsRegex, "_");
+            string path = Util.CleanFilename(contentType, '_');
             path = Path.Combine(m_storeDirectory, path);
             path = Path.Combine(path, dataID.ToString());
 
@@ -382,7 +379,7 @@ namespace Simian
 
         private string GetTemporaryFilename(UUID dataID, string contentType)
         {
-            string path = Regex.Replace(contentType, m_invalidPathCharsRegex, "_");
+            string path = Util.CleanFilename(contentType, '_');
             path = Path.Combine(m_tempStoreDirectory, path);
             path = Path.Combine(path, dataID.ToString());
 

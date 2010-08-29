@@ -31,6 +31,7 @@ using System.Collections.Specialized;
 using System.ComponentModel.Composition;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using log4net;
 using Nini.Config;
 using OpenMetaverse;
@@ -232,6 +233,82 @@ namespace Simian.Connectors.Remote
             }
 
             return foundScenes.ToArray();
+        }
+
+        public bool AddOrUpdateMapTile(SceneInfo sceneInfo, Image mapTile)
+        {
+            string errorMessage = null;
+            byte[] pngData;
+
+            using (MemoryStream stream = new MemoryStream())
+            {
+                mapTile.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                pngData = stream.ToArray();
+            }
+
+            // Get the scene X/Y position in increments of 256 meters
+            uint x = (uint)sceneInfo.MinPosition.X / 256u;
+            uint y = (uint)sceneInfo.MinPosition.Y / 256u;
+
+            // Build the form POST data
+            List<MultipartForm.Element> postParameters = new List<MultipartForm.Element>()
+            {
+                new MultipartForm.Parameter("X",  x.ToString()),
+                new MultipartForm.Parameter("Y", y.ToString()),
+                new MultipartForm.File("Tile", "tile.png", "image/png", pngData)
+            };
+
+            // Make the remote storage request
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(m_serverUrl);
+
+                HttpWebResponse response = MultipartForm.Post(request, postParameters);
+                using (Stream responseStream = response.GetResponseStream())
+                {
+                    string responseStr = null;
+
+                    try
+                    {
+                        responseStr = responseStream.GetStreamString();
+                        OSD responseOSD = OSDParser.Deserialize(responseStr);
+                        if (responseOSD.Type == OSDType.Map)
+                        {
+                            OSDMap responseMap = (OSDMap)responseOSD;
+                            if (responseMap["Success"].AsBoolean())
+                                m_log.Debug("Uploaded " + pngData.Length + " byte PNG map tile to AddMapTile");
+                            else
+                                errorMessage = "Upload failed: " + responseMap["Message"].AsString();
+                        }
+                        else
+                        {
+                            errorMessage = "Response format was invalid:\n" + responseStr;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!String.IsNullOrEmpty(responseStr))
+                            errorMessage = "Failed to parse the response:\n" + responseStr;
+                        else
+                            errorMessage = "Failed to retrieve the response: " + ex.Message;
+                    }
+                }
+            }
+            catch (WebException ex)
+            {
+                errorMessage = ex.Message;
+            }
+
+            if (String.IsNullOrEmpty(errorMessage))
+            {
+                return true;
+            }
+            else
+            {
+                m_log.WarnFormat("Failed to store {0} byte PNG map tile for {1}: {2}", pngData.Length, sceneInfo.Name,
+                    errorMessage.Replace('\n', ' '));
+                return false;
+            }
         }
 
         #endregion IGridClient Members

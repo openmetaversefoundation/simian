@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using log4net;
 using OpenMetaverse;
+using OpenMetaverse.Messages.Linden;
 using OpenMetaverse.Packets;
 
 namespace Simian.Protocols.Linden.Packets
@@ -131,7 +132,7 @@ namespace Simian.Protocols.Linden.Packets
             SceneParcel parcel;
             if (m_parcels.TryGetParcel(request.Data.ParcelID, out parcel))
             {
-                Vector3 scenePosition = new Vector3(m_scene.MinPosition);
+                Vector3d scenePosition = m_scene.MinPosition;
                 Vector3 aabbMin, aabbMax;
 
                 ParcelInfoReplyPacket reply = new ParcelInfoReplyPacket();
@@ -142,8 +143,8 @@ namespace Simian.Protocols.Linden.Packets
                 reply.Data.Desc = Utils.StringToBytes(parcel.Desc);
                 reply.Data.Dwell = parcel.Dwell;
                 reply.Data.Flags = (byte)parcel.Flags;
-                reply.Data.GlobalX = scenePosition.X + aabbMin.X;
-                reply.Data.GlobalY = scenePosition.Y + aabbMin.Y;
+                reply.Data.GlobalX = (float)scenePosition.X + aabbMin.X;
+                reply.Data.GlobalY = (float)scenePosition.Y + aabbMin.Y;
                 reply.Data.GlobalZ = 0f; // FIXME:
                 reply.Data.Name = Utils.StringToBytes(parcel.Name);
                 reply.Data.OwnerID = parcel.OwnerID;
@@ -686,50 +687,65 @@ namespace Simian.Protocols.Linden.Packets
                 // Owner sanity check
                 if (parcel.OwnerID == UUID.Zero)
                 {
-                    m_log.Info("Assigning parcel " + parcel.Name + " to " + agent.Name);
+                    m_log.Warn("Assigning parcel " + parcel.Name + " to " + agent.Name);
                     parcel.OwnerID = agent.ID;
                     m_parcels.AddOrUpdateParcel(parcel);
                 }
 
-                ParcelPropertiesPacket properties = new ParcelPropertiesPacket();
-                properties.ParcelData.Area = ParcelManager.GetParcelArea(parcel, out properties.ParcelData.AABBMin, out properties.ParcelData.AABBMax);
-                properties.ParcelData.AuctionID = 0; // Unused
-                properties.ParcelData.AuthBuyerID = parcel.AuthBuyerID;
-                properties.ParcelData.Bitmap = parcel.Bitmap;
-                properties.ParcelData.Category = (byte)parcel.Category;
-                properties.ParcelData.ClaimDate = (int)Utils.DateTimeToUnixTime(parcel.ClaimDate);
-                properties.ParcelData.ClaimPrice = 0; // Deprecated
-                properties.ParcelData.Desc = Utils.StringToBytes(parcel.Desc);
-                properties.ParcelData.GroupID = parcel.GroupID;
-                properties.ParcelData.IsGroupOwned = parcel.IsGroupOwned;
-                properties.ParcelData.LandingType = (byte)parcel.Landing;
-                properties.ParcelData.LocalID = parcel.LocalID;
-                properties.ParcelData.MaxPrims = parcel.MaxPrims;
-                properties.ParcelData.MediaAutoScale = (byte)(parcel.Media.MediaAutoScale ? 1 : 0);
-                properties.ParcelData.MediaID = parcel.Media.MediaID;
-                properties.ParcelData.MediaURL = Utils.StringToBytes(parcel.Media.MediaURL);
-                properties.ParcelData.MusicURL = Utils.StringToBytes(parcel.MusicURL);
-                properties.ParcelData.Name = Utils.StringToBytes(parcel.Name);
-                properties.ParcelData.OtherCleanTime = parcel.AutoReturnTime;
-                properties.ParcelData.OwnerID = parcel.OwnerID;
-                properties.ParcelData.ParcelFlags = (uint)parcel.Flags;
-                properties.ParcelData.ParcelPrimBonus = 1f;
-                properties.ParcelData.PassHours = parcel.PassHours;
-                properties.ParcelData.PassPrice = parcel.PassPrice;
-                properties.AgeVerificationBlock.RegionDenyAgeUnverified = parcel.DenyAgeUnverified;
-                properties.ParcelData.RegionDenyAnonymous = parcel.DenyAnonymous;
-                properties.ParcelData.RegionDenyIdentified = false; // Deprecated
-                properties.ParcelData.RegionDenyTransacted = false; // Deprecated
-                properties.ParcelData.RegionPushOverride = parcel.PushOverride;
-                properties.ParcelData.RentPrice = 0; // Deprecated
-                properties.ParcelData.RequestResult = (int)result;
-                properties.ParcelData.SalePrice = parcel.SalePrice;
-                properties.ParcelData.SequenceID = sequenceID;
-                properties.ParcelData.SnapSelection = snapSelection;
-                properties.ParcelData.SnapshotID = parcel.SnapshotID;
-                properties.ParcelData.Status = (byte)parcel.Status;
-                properties.ParcelData.UserLocation = parcel.LandingLocation;
-                properties.ParcelData.UserLookAt = parcel.LandingLookAt;
+                // Claim date sanity check
+                if (parcel.ClaimDate <= Utils.Epoch)
+                {
+                    m_log.Warn("Resetting invalid parcel claim date");
+                    parcel.ClaimDate = DateTime.UtcNow;
+                    m_parcels.AddOrUpdateParcel(parcel);
+                }
+
+                ParcelPropertiesMessage properties = new ParcelPropertiesMessage();
+                properties.Area = ParcelManager.GetParcelArea(parcel, out properties.AABBMin, out properties.AABBMax);
+                properties.AuctionID = 0; // Unused
+                properties.AuthBuyerID = parcel.AuthBuyerID;
+                properties.Bitmap = parcel.Bitmap;
+                properties.Category = parcel.Category;
+                properties.ClaimDate = parcel.ClaimDate;
+                properties.ClaimPrice = 0; // Deprecated
+                properties.Desc = parcel.Desc;
+                properties.GroupID = parcel.GroupID;
+                properties.IsGroupOwned = parcel.IsGroupOwned;
+                properties.LandingType = parcel.Landing;
+                properties.LocalID = parcel.LocalID;
+                properties.MaxPrims = parcel.MaxPrims;
+                properties.MediaAutoScale = parcel.Media.MediaAutoScale;
+                properties.MediaDesc = parcel.Media.MediaDesc;
+                properties.MediaHeight = parcel.Media.MediaHeight;
+                properties.MediaID = parcel.Media.MediaID;
+                properties.MediaLoop = parcel.Media.MediaLoop;
+                properties.MediaType = parcel.Media.MediaType;
+                properties.MediaURL = parcel.Media.MediaURL;
+                properties.MediaWidth = parcel.Media.MediaWidth;
+                properties.MusicURL = parcel.Media.MediaURL;
+                properties.Name = parcel.Name;
+                properties.ObscureMedia = parcel.ObscureMedia;
+                properties.ObscureMusic = parcel.ObscureMusic;
+                properties.OtherCleanTime = parcel.AutoReturnTime;
+                properties.OwnerID = parcel.OwnerID;
+                properties.ParcelFlags = parcel.Flags;
+                properties.ParcelPrimBonus = 1f;
+                properties.PassHours = parcel.PassHours;
+                properties.PassPrice = parcel.PassPrice;
+                properties.RegionDenyAgeUnverified = parcel.DenyAgeUnverified;
+                properties.RegionDenyAnonymous = parcel.DenyAnonymous;
+                properties.RegionDenyIdentified = false;
+                properties.RegionDenyTransacted = false;
+                properties.RegionPushOverride = parcel.PushOverride;
+                properties.RentPrice = 0; // Deprecated
+                properties.RequestResult = result;
+                properties.SalePrice = parcel.SalePrice;
+                properties.SequenceID = sequenceID;
+                properties.SnapSelection = snapSelection;
+                properties.SnapshotID = parcel.SnapshotID;
+                properties.Status = parcel.Status;
+                properties.UserLocation = parcel.LandingLocation;
+                properties.UserLookAt = parcel.LandingLookAt;
 
                 int ownerPrims = 0;
                 int groupPrims = 0;
@@ -750,22 +766,22 @@ namespace Simian.Protocols.Linden.Packets
                     }
                 }
 
-                properties.ParcelData.OwnerPrims = ownerPrims;
-                properties.ParcelData.GroupPrims = groupPrims;
-                properties.ParcelData.OtherPrims = otherPrims;
-                properties.ParcelData.TotalPrims = ownerPrims + groupPrims + otherPrims;
-                properties.ParcelData.SelectedPrims = selectedPrims;
+                properties.OwnerPrims = ownerPrims;
+                properties.GroupPrims = groupPrims;
+                properties.OtherPrims = otherPrims;
+                properties.TotalPrims = ownerPrims + groupPrims + otherPrims;
+                properties.SelectedPrims = selectedPrims;
 
                 // TODO: Implement these
-                properties.ParcelData.SimWideMaxPrims = 0;
-                properties.ParcelData.SimWideTotalPrims = 0;
+                properties.SimWideMaxPrims = 0;
+                properties.SimWideTotalPrims = 0;
 
                 // TODO: What are these?
-                properties.ParcelData.SelfCount = 0;
-                properties.ParcelData.PublicCount = 0;
-                properties.ParcelData.OtherCount = 0;
+                properties.SelfCount = 0;
+                properties.PublicCount = 0;
+                properties.OtherCount = 0;
 
-                m_udp.SendPacket(agent, properties, ThrottleCategory.Task, false);
+                agent.EventQueue.QueueEvent("ParcelProperties", properties.Serialize());
             }
             else
             {

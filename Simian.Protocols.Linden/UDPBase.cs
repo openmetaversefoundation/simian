@@ -248,36 +248,43 @@ namespace Simian.Protocols.Linden
             }
         }
 
-        public void AsyncBeginSend(UDPPacketBuffer buf)
+        public void Send(UDPPacketBuffer buf)
         {
             if (!m_shutdownFlag)
             {
                 try
                 {
-                    m_udpSocket.BeginSendTo(
+                    m_udpSocket.SendTo(
                         buf.Data,
                         0,
                         buf.DataLength,
                         SocketFlags.None,
-                        buf.RemoteEndPoint,
-                        AsyncEndSend,
-                        buf);
+                        buf.RemoteEndPoint);
+
+                    //m_udpSocket.BeginSendTo(
+                    //    buf.Data,
+                    //    0,
+                    //    buf.DataLength,
+                    //    SocketFlags.None,
+                    //    buf.RemoteEndPoint,
+                    //    AsyncEndSend,
+                    //    buf);
                 }
                 catch (SocketException) { }
                 catch (ObjectDisposedException) { }
             }
         }
 
-        void AsyncEndSend(IAsyncResult result)
-        {
-            try
-            {
-                //UDPPacketBuffer buf = (UDPPacketBuffer)result.AsyncState;
-                //int bytesSent = m_udpSocket.EndSendTo(result);
-                m_udpSocket.EndSendTo(result);
-            }
-            catch (SocketException) { }
-            catch (ObjectDisposedException) { }
-        }
+        //void AsyncEndSend(IAsyncResult result)
+        //{
+        //    try
+        //    {
+        //        //UDPPacketBuffer buf = (UDPPacketBuffer)result.AsyncState;
+        //        //int bytesSent = m_udpSocket.EndSendTo(result);
+        //        m_udpSocket.EndSendTo(result);
+        //    }
+        //    catch (SocketException) { }
+        //    catch (ObjectDisposedException) { }
+        //}
     }
 }

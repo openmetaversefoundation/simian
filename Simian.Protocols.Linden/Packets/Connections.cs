@@ -78,51 +78,10 @@ namespace Simian.Protocols.Linden.Packets
 
         private void UseCircuitCodeHandler(Packet packet, LLAgent agent)
         {
-            RegionHandshakePacket handshake = new RegionHandshakePacket();
-
-            handshake.RegionInfo.CacheID = m_scene.ID;
-            handshake.RegionInfo.SimName = Utils.StringToBytes(m_scene.Name);
-            handshake.RegionInfo2.RegionID = m_scene.ID;
-            handshake.RegionInfo.IsEstateManager = (m_permissions != null) ? m_permissions.IsEstateManager(agent) : true;
-
-            if (m_regionInfo != null)
-            {
-                handshake.RegionInfo3.ColoName = Utils.EmptyBytes;
-                handshake.RegionInfo3.ProductName = Utils.StringToBytes(m_regionInfo.ProductName);
-                handshake.RegionInfo3.ProductSKU = Utils.StringToBytes(m_regionInfo.ProductSKU);
-                handshake.RegionInfo.RegionFlags = (uint)m_regionInfo.RegionFlags;
-                handshake.RegionInfo.SimAccess = (byte)m_regionInfo.SimAccess;
-                handshake.RegionInfo.SimOwner = m_regionInfo.OwnerID;
-                handshake.RegionInfo.TerrainBase0 = m_regionInfo.TerrainBase0;
-                handshake.RegionInfo.TerrainBase1 = m_regionInfo.TerrainBase1;
-                handshake.RegionInfo.TerrainBase2 = m_regionInfo.TerrainBase2;
-                handshake.RegionInfo.TerrainBase3 = m_regionInfo.TerrainBase3;
-                handshake.RegionInfo.TerrainDetail0 = m_regionInfo.TerrainDetail0;
-                handshake.RegionInfo.TerrainDetail1 = m_regionInfo.TerrainDetail1;
-                handshake.RegionInfo.TerrainDetail2 = m_regionInfo.TerrainDetail2;
-                handshake.RegionInfo.TerrainDetail3 = m_regionInfo.TerrainDetail3;
-                handshake.RegionInfo.TerrainHeightRange00 = m_regionInfo.TerrainHeightRange00;
-                handshake.RegionInfo.TerrainHeightRange01 = m_regionInfo.TerrainHeightRange01;
-                handshake.RegionInfo.TerrainHeightRange10 = m_regionInfo.TerrainHeightRange10;
-                handshake.RegionInfo.TerrainHeightRange11 = m_regionInfo.TerrainHeightRange11;
-                handshake.RegionInfo.TerrainStartHeight00 = m_regionInfo.TerrainStartHeight00;
-                handshake.RegionInfo.TerrainStartHeight01 = m_regionInfo.TerrainStartHeight01;
-                handshake.RegionInfo.TerrainStartHeight10 = m_regionInfo.TerrainStartHeight10;
-                handshake.RegionInfo.TerrainStartHeight11 = m_regionInfo.TerrainStartHeight11;
-                handshake.RegionInfo.WaterHeight = m_regionInfo.WaterHeight;
-            }
-            else
-            {
-                handshake.RegionInfo3.ColoName = Utils.EmptyBytes;
-                handshake.RegionInfo3.ProductName = Utils.StringToBytes("Simian");
-                handshake.RegionInfo3.ProductSKU = Utils.EmptyBytes;
-                handshake.RegionInfo.SimAccess = (byte)SimAccess.Min;
-            }
-
             // Add the agent to the scene
             m_scene.EntityAddOrUpdate(this, agent, UpdateFlags.FullUpdate, 0);
 
-            m_udp.SendPacket(agent, handshake, ThrottleCategory.Task, false);
+            Estates.SendRegionHandshake(agent, m_udp, m_scene, m_regionInfo, m_permissions);
         }
 
         private void CompleteAgentMovementHandler(Packet packet, LLAgent agent)

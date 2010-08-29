@@ -271,6 +271,10 @@ namespace Simian.Protocols.WebSocket
         /// <summary>Link number, if this avatar is sitting</summary>
         public int LinkNumber { get { return m_linkNumber; } set { m_linkNumber = value; } }
 
+        public void MarkAsModified()
+        {
+        }
+
         public ILinkable[] GetChildren()
         {
             return m_children.GetArray();

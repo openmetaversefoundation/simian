@@ -279,7 +279,10 @@ namespace Simian.Protocols.LindenLogin
             {
                 m_gridClient.TryGetSceneNear(Vector3d.Zero, true, out sceneInfo);
                 if (sceneInfo != null)
+                {
                     sceneStartPosition = new Vector3((sceneInfo.MinPosition + sceneInfo.MaxPosition) * 0.5d - sceneInfo.MinPosition);
+                    sceneStartPosition.Z = 0f;
+                }
             }
 
             if (sceneInfo != null)

@@ -232,6 +232,7 @@ namespace Simian
             // Add a few command handlers
             AddCommandHandler("presences", PresenceCommandHandler);
             AddCommandHandler("shutdown", ShutdownCommandHandler);
+            AddCommandHandler("restart", RestartCommandHandler);
 
             m_running = true;
         }
@@ -535,6 +536,22 @@ namespace Simian
                 this.Stop();
         }
 
+        private void RestartCommandHandler(string command, string[] args, bool printHelp)
+        {
+            // TODO: Implement the command line options of the Linux restart command,
+            // including sending a message to all connected presences
+
+            if (printHelp)
+            {
+                Console.WriteLine("Restart the \"{0}\" scene", m_name);
+            }
+            else
+            {
+                this.Stop();
+                this.Start();
+            }
+        }
+
         #endregion Command Handling
 
         #region Entity Methods
@@ -628,6 +645,10 @@ namespace Simian
             // If this is a physical entity and the scale or shape changed, reset any cached mass calculations
             if (entity is IPhysical && (updateFlags.HasFlag(UpdateFlags.Scale) || updateFlags.HasFlag(UpdateFlags.Shape)))
                 ((IPhysical)entity).ResetMass();
+
+            // Mark updated entities as modified
+            if (!isNew)
+                entity.MarkAsModified();
 
             #region Callbacks
 

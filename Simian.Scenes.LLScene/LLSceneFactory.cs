@@ -49,12 +49,17 @@ namespace Simian.Scenes.LLScene
         public event SceneStartCallback OnSceneStart;
         public event SceneStopCallback OnSceneStop;
 
+        private ISceneRenderer m_renderer;
+        private IGridClient m_gridClient;
         private Dictionary<UUID, IScene> m_scenes = new Dictionary<UUID, IScene>();
         private IScene[] m_scenesArray;
 
         public bool Start(Simian simian)
         {
             m_scenes = new Dictionary<UUID, IScene>();
+
+            m_renderer = simian.GetAppModule<ISceneRenderer>();
+            m_gridClient = simian.GetAppModule<IGridClient>();
 
             string[] sceneFiles = null;
 
@@ -95,7 +100,7 @@ namespace Simian.Scenes.LLScene
 
                     m_scenes[scene.ID] = scene;
 
-                    //CreateMapTile(scene);
+                    CreateMapTile(scene);
                 }
                 else
                 {
@@ -145,54 +150,25 @@ namespace Simian.Scenes.LLScene
             return m_scenes.TryGetValue(sceneID, out scene);
         }
 
-        private void CreateMapTile(IScene scene)
+        public void RestartScene(Scene scene)
         {
-            ISceneRenderer renderer = scene.Simian.GetAppModule<ISceneRenderer>();
-            IGridClient gridClient = scene.Simian.GetAppModule<IGridClient>();
-
-            if (renderer != null && gridClient != null)
-            {
-                Viewport viewport = new Viewport(new Vector3(127.5f, 127.5f, 221.7025033688163f), -Vector3.UnitZ, 60f, 1024f, 0.1f, 256, 256);
-                Image image = renderer.Render(scene, viewport);
-
-                if (image != null)
-                {
-                    byte[] assetData;
-                    using (MemoryStream stream = new MemoryStream())
-                    {
-                        image.Save(stream, ImageFormat.Png);
-                        assetData = stream.ToArray();
-                    }
-
-                    // FIXME: Need IGridClient.SaveMapTile
-                    //gridClient.
-                }
-                else
-                {
-                    m_log.Warn("Failed to render map tile for " + scene.Name);
-                }
-            }
+            scene.Stop();
+            scene.Start();
         }
 
-        private Image RenderScene(IScene scene, bool withObjects)
+        private void CreateMapTile(IScene scene)
         {
-            Bitmap bitmap = new Bitmap(256, 256, PixelFormat.Format24bppRgb);
-            ITerrain m_terrain = scene.GetSceneModule<ITerrain>();
-            float[] heightmap = (m_terrain != null) ? m_terrain.GetHeightmap() : null;
-            float waterHeight = (m_terrain != null) ? m_terrain.WaterHeight : 20f;
-
-            for (int y = 0; y < 256; y++)
+            if (m_renderer != null && m_gridClient != null)
             {
-                for (int x = 0; x < 256; x++)
-                {
-                    if (heightmap != null && heightmap[y * 256 + x] > waterHeight)
-                        bitmap.SetPixel(x, y, Color.Green);
-                    else
-                        bitmap.SetPixel(x, y, Color.Blue);
-                }
-            }
+                Vector3 camPos = new Vector3(127.5f, 127.5f, 221.7025033688163f);
+                Viewport viewport = new Viewport(camPos, -Vector3.UnitZ, 1024f, 0.1f, 256, 256, 256f, 256f);
+                Image image = m_renderer.Render(scene, viewport);
 
-            return (System.Drawing.Image)bitmap;
+                if (image != null)
+                    m_gridClient.AddOrUpdateMapTile(SceneInfo.FromScene(scene), image);
+                else
+                    m_log.Warn("Failed to render map tile for " + scene.Name);
+            }
         }
     }
 }

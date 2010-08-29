@@ -625,6 +625,10 @@ namespace Simian.Protocols.Linden
 
         #endregion IPhysical
 
+        public void MarkAsModified()
+        {
+        }
+
         public void UpdateHeight()
         {
             byte[] visualParams = VisualParams;

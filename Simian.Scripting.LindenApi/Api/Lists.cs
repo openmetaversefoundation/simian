@@ -190,5 +190,196 @@ namespace Simian.Scripting.Linden
                     return 0f;
             }
         }
+
+        [ScriptMethod]
+        public lsl_list llParseString2List(string str, lsl_list separators, lsl_list in_spacers)
+        {
+            lsl_list ret = new lsl_list();
+            lsl_list spacers = new lsl_list();
+
+            if (in_spacers.Length > 0 && separators.Length > 0)
+            {
+                for (int i = 0; i < in_spacers.Length; i++)
+                {
+                    object s = in_spacers.Data[i];
+                    for (int j = 0; j < separators.Length; j++)
+                    {
+                        if (separators.Data[j].ToString() == s.ToString())
+                        {
+                            s = null;
+                            break;
+                        }
+                    }
+
+                    if (s != null)
+                        spacers.Add(s);
+                }
+            }
+
+            object[] delimiters = new object[separators.Length + spacers.Length];
+            separators.Data.CopyTo(delimiters, 0);
+            spacers.Data.CopyTo(delimiters, separators.Length);
+
+            bool dfound;
+            do
+            {
+                dfound = false;
+                int cindex = -1;
+                string cdeli = String.Empty;
+                for (int i = 0; i < delimiters.Length; i++)
+                {
+                    int index = str.IndexOf(delimiters[i].ToString());
+                    bool found = index != -1;
+                    if (found && String.Empty != delimiters[i].ToString())
+                    {
+                        if ((cindex > index) || (cindex == -1))
+                        {
+                            cindex = index;
+                            cdeli = delimiters[i].ToString();
+                        }
+                        dfound = dfound || found;
+                    }
+                }
+                if (cindex != -1)
+                {
+                    if (cindex > 0)
+                        ret.Add(str.Substring(0, cindex));
+
+                    for (int j = 0; j < spacers.Length; j++)
+                    {
+                        if (spacers.Data[j].ToString() == cdeli)
+                        {
+                            ret.Add(cdeli);
+                            break;
+                        }
+                    }
+
+                    str = str.Substring(cindex + cdeli.Length);
+                }
+            } while (dfound);
+
+            if (!String.IsNullOrEmpty(str))
+                ret.Add(str);
+
+            return ret;
+        }
+
+        [ScriptMethod]
+        public lsl_list llParseStringKeepNulls(string src, lsl_list separators, lsl_list spacers)
+        {
+            int beginning = 0;
+            int srclen = src.Length;
+            int seplen = separators.Length;
+            object[] separray = separators.Data;
+            int spclen = spacers.Length;
+            object[] spcarray = spacers.Data;
+            int mlen = seplen + spclen;
+
+            int[] offset = new int[mlen + 1];
+            bool[] active = new bool[mlen];
+
+            int best;
+            int j;
+
+            lsl_list tokens = new lsl_list();
+
+            // All entries are initially valid
+            for (int i = 0; i < mlen; i++)
+                active[i] = true;
+
+            offset[mlen] = srclen;
+
+            while (beginning < srclen)
+            {
+                best = mlen; // As bad as it gets
+
+                // Scan for separators
+                for (j = 0; j < seplen; j++)
+                {
+                    if (active[j])
+                    {
+                        // Scan all of the markers
+                        if ((offset[j] = src.IndexOf(separray[j].ToString(), beginning)) == -1)
+                        {
+                            // Not present at all
+                            active[j] = false;
+                        }
+                        else
+                        {
+                            // Present and correct
+                            if (offset[j] < offset[best])
+                            {
+                                // Closest so far
+                                best = j;
+                                if (offset[best] == beginning)
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                // Scan for spacers
+                if (offset[best] != beginning)
+                {
+                    for (j = seplen; (j < mlen) && (offset[best] > beginning); j++)
+                    {
+                        if (active[j])
+                        {
+                            // Scan all of the markers
+                            if ((offset[j] = src.IndexOf(spcarray[j - seplen].ToString(), beginning)) == -1)
+                            {
+                                // Not present at all
+                                active[j] = false;
+                            }
+                            else
+                            {
+                                // Present and correct
+                                if (offset[j] < offset[best])
+                                {
+                                    // Closest so far
+                                    best = j;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // This is the normal exit from the scanning loop
+                if (best == mlen)
+                {
+                    // No markers were found on this pass
+                    // so we're pretty much done
+                    tokens.Add(src.Substring(beginning, srclen - beginning));
+                    break;
+                }
+
+                // Otherwise we just add the newly delimited token
+                // and recalculate where the search should continue
+                tokens.Add(src.Substring(beginning, offset[best] - beginning));
+
+                if (best < seplen)
+                {
+                    beginning = offset[best] + (separray[best].ToString()).Length;
+                }
+                else
+                {
+                    beginning = offset[best] + (spcarray[best - seplen].ToString()).Length;
+                    tokens.Add(spcarray[best - seplen].ToString());
+                }
+            }
+
+            // This an awkward an not very intuitive boundary case. If the
+            // last substring is a tokenizer, then there is an implied trailing
+            // null list entry. Hopefully the single comparison will not be too
+            // arduous. Alternatively the 'break' could be replaced with a return
+            // but that's shabby programming
+            if (beginning == srclen)
+            {
+                if (srclen != 0)
+                    tokens.Add(String.Empty);
+            }
+
+            return tokens;
+        }
     }
 }

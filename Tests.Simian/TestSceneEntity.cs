@@ -107,6 +107,10 @@ namespace Tests.Simian
             CreatorID = creatorID;
         }
 
+        public void MarkAsModified()
+        {
+        }
+
         public override string ToString()
         {
             return String.Format("{0} (ID: {1}, LocalID: {2}", Name, ID, LocalID);

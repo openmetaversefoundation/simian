@@ -238,6 +238,10 @@ namespace Simian.Addons.IRCServer
 
             #endregion Properties
 
+            public void MarkAsModified()
+            {
+            }
+
             public override string ToString()
             {
                 return String.Format("IRCUser \"{0}\" ({1}) @ {2}", Name, ID, m_position);

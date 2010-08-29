@@ -31,9 +31,21 @@ using System.ComponentModel.Composition;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 
 namespace Simian.Protocols.Linden.Packets
 {
+    /// <summary>
+    /// Reason for a cache miss, found in incoming RequestMultipleObject packets
+    /// </summary>
+    public enum CacheMissType
+    {
+        /// <summary>No matching object ID</summary>
+        Full = 0,
+        /// <summary>Object found, but with a different CRC</summary>
+        CRC = 1
+    }
+
     /// <summary>
     /// Handles logins, logouts, teleports, region crossings, bandwidth settings and more for agents
     /// </summary>
@@ -42,8 +54,13 @@ namespace Simian.Protocols.Linden.Packets
     {
         #region Constants
 
+        // TODO: Enable this when the stable viewer release has a functional cache
+        const bool CACHE_CHECK_ENABLED = false;
+
         const string OBJECT_UPDATE = "UpdateObject";
         const string OBJECT_REMOVE = "RemoveObject";
+
+        const int AVATAR_TRACKING_COUNT = 500;
 
         // Scripting event flags
         const int AGENT = 1;
@@ -71,8 +88,11 @@ namespace Simian.Protocols.Linden.Packets
         private IPrimMesher m_primMesher;
         private ILSLScriptEngine m_lslScriptEngine;
         private LLPermissions m_permissions;
+        private IDataStore m_dataStore;
+        private IStatsTracker m_statsTracker;
         private Inventory m_inventory;
         private Primitive m_proxyPrim;
+        private Dictionary<UUID, DateTime> m_recentAvatars = new Dictionary<UUID, DateTime>(AVATAR_TRACKING_COUNT);
 
         public void Start(IScene scene)
         {
@@ -96,6 +116,8 @@ namespace Simian.Protocols.Linden.Packets
             m_physics = m_scene.GetSceneModule<IPhysicsEngine>();
             m_lslScriptEngine = m_scene.GetSceneModule<ILSLScriptEngine>();
             m_inventory = m_scene.GetSceneModule<Inventory>();
+            m_dataStore = m_scene.Simian.GetAppModule<IDataStore>();
+            m_statsTracker = m_scene.Simian.GetAppModule<IStatsTracker>();
 
             // Collision handler
             if (m_physics != null && m_lslScriptEngine != null)
@@ -127,6 +149,7 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.AddPacketHandler(PacketType.Redo, RedoHandler);
                 m_udp.AddPacketHandler(PacketType.MultipleObjectUpdate, MultipleObjectUpdateHandler);
                 m_udp.AddPacketHandler(PacketType.RequestObjectPropertiesFamily, RequestObjectPropertiesFamilyHandler);
+                m_udp.AddPacketHandler(PacketType.RequestMultipleObjects, RequestMultipleObjectsHandler);
 
                 m_scene.AddInterestListHandler(OBJECT_UPDATE, new InterestListEventHandler { CombineCallback = ObjectUpdateCombiner, SendCallback = SendEntityPackets });
                 m_scene.AddInterestListHandler(OBJECT_REMOVE, new InterestListEventHandler { CombineCallback = ObjectUpdateCombiner, SendCallback = SendKillPacket });
@@ -134,10 +157,13 @@ namespace Simian.Protocols.Linden.Packets
                 m_scene.OnEntityAddOrUpdate += EntityAddOrUpdateHandler;
                 m_scene.OnEntityRemove += EntityRemoveHandler;
                 m_scene.OnPresenceAdd += PresenceAddHandler;
+                m_scene.OnPresenceRemove += PresenceRemoveHandler;
             }
 
             m_proxyPrim = new Primitive();
             m_proxyPrim.PrimData = ObjectManager.BuildBasicShape(PrimType.Box);
+
+            DeserializeRecentAvatars();
         }
 
         public void Stop()
@@ -170,11 +196,14 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.RemovePacketHandler(PacketType.Redo, RedoHandler);
                 m_udp.RemovePacketHandler(PacketType.MultipleObjectUpdate, MultipleObjectUpdateHandler);
                 m_udp.RemovePacketHandler(PacketType.RequestObjectPropertiesFamily, RequestObjectPropertiesFamilyHandler);
+                m_udp.RemovePacketHandler(PacketType.RequestMultipleObjects, RequestMultipleObjectsHandler);
 
                 m_scene.OnEntityAddOrUpdate -= EntityAddOrUpdateHandler;
                 m_scene.OnEntityRemove -= EntityRemoveHandler;
                 m_scene.OnPresenceAdd -= PresenceAddHandler;
             }
+
+            SerializeRecentAvatars();
         }
 
         #region Client Packet Handling
@@ -1241,7 +1270,7 @@ namespace Simian.Protocols.Linden.Packets
                     {
                         // Update failed (probably due to permissions), update client's state for 
                         // this entity
-                        SendEntityTo(agent, obj);
+                        SendEntityTo(agent, obj, false);
                     }
                 }
                 else
@@ -1277,6 +1306,44 @@ namespace Simian.Protocols.Linden.Packets
             else
             {
                 m_log.Warn("RequestObjectPropertiesFamily sent for unknown object " + request.ObjectData.ObjectID);
+            }
+        }
+
+        void RequestMultipleObjectsHandler(Packet packet, LLAgent agent)
+        {
+            RequestMultipleObjectsPacket request = (RequestMultipleObjectsPacket)packet;
+            int cacheMissFull = 0;
+            int cacheMissCRC = 0;
+
+            for (int i = 0; i < request.ObjectData.Length; i++)
+            {
+                RequestMultipleObjectsPacket.ObjectDataBlock block = request.ObjectData[i];
+                CacheMissType missType = (CacheMissType)block.CacheMissType;
+
+                if (missType == CacheMissType.Full)
+                    ++cacheMissFull;
+                else if (missType == CacheMissType.CRC)
+                    ++cacheMissCRC;
+                else
+                    m_log.Warn("Unrecognized cache miss type " + missType);
+
+                ISceneEntity entity;
+                if (m_scene.TryGetEntity(block.ID, out entity))
+                    SendEntityTo(agent, entity, false);
+                else
+                    m_log.Warn("Received a RequestMultipleObjects packet for unknown entity " + block.ID);
+            }
+
+            //m_log.Debug("Handling " + (cacheMissFull + cacheMissCRC) + " cache misses");
+
+            if (m_statsTracker != null)
+            {
+                DateTime now = DateTime.UtcNow;
+
+                if (cacheMissFull > 0)
+                    m_statsTracker.LogEntry(now, agent.ID, "CacheMissFull", cacheMissFull);
+                if (cacheMissCRC > 0)
+                    m_statsTracker.LogEntry(now, agent.ID, "CacheMissCRC", cacheMissCRC);
             }
         }
 
@@ -1328,15 +1395,25 @@ namespace Simian.Protocols.Linden.Packets
                     delegate(ISceneEntity entity)
                     {
                         if (entity.ID != agent.ID)
-                            SendEntityTo(agent, entity);
+                            SendEntityTo(agent, entity, true);
                     }
                 );
             }
         }
 
+        private void PresenceRemoveHandler(object sender, PresenceArgs e)
+        {
+            // Mark the time this presence was last connected to the scene. This is used in the 
+            // object update sending loop to determine if we should send a cache check or the full 
+            // object update
+            lock (m_recentAvatars)
+                m_recentAvatars[e.Presence.ID] = DateTime.UtcNow;
+        }
+
         private void EntityCollisionHandler(object sender, EntityCollisionArgs e)
         {
             // FIXME: Skipping this entirely until we can get some throttling in here
+            // We have a ThrottledQueue class now, just need to use it
             return;
 
             //DetectParams collision = new DetectParams();
@@ -1365,20 +1442,35 @@ namespace Simian.Protocols.Linden.Packets
             Lazy<List<ObjectUpdatePacket.ObjectDataBlock>> objectUpdateBlocks = new Lazy<List<ObjectUpdatePacket.ObjectDataBlock>>();
             Lazy<List<ObjectUpdateCompressedPacket.ObjectDataBlock>> compressedUpdateBlocks = new Lazy<List<ObjectUpdateCompressedPacket.ObjectDataBlock>>();
             Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>> terseUpdateBlocks = new Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>>();
+            Lazy<List<ObjectUpdateCachedPacket.ObjectDataBlock>> cachedUpdateBlocks = new Lazy<List<ObjectUpdateCachedPacket.ObjectDataBlock>>();
 
             for (int i = 0; i < eventDatas.Length; i++)
             {
                 EntityAddOrUpdateArgs e = (EntityAddOrUpdateArgs)eventDatas[i].Event.State;
                 ISceneEntity entity = e.Entity;
 
-                #region UpdateFlags to packet type conversion
+                #region Determine packet type
 
                 UpdateFlags updateFlags = e.UpdateFlags;
                 LLUpdateFlags llUpdateFlags = (LLUpdateFlags)e.ExtraFlags;
+                LLPrimitive prim = entity as LLPrimitive;
 
-                bool canUseImproved = true;
+                bool canUseCached = false;
+                bool canUseTerse = true;
+                DateTime lastSeen;
 
-                if (updateFlags.HasFlag(UpdateFlags.FullUpdate) ||
+                if (CACHE_CHECK_ENABLED &&
+                    prim != null &&
+                    updateFlags.HasFlag(UpdateFlags.FullUpdate) &&
+                    !llUpdateFlags.HasFlag(LLUpdateFlags.NoCachedUpdate) &&
+                    m_recentAvatars.TryGetValue(presence.ID, out lastSeen) &&
+                    lastSeen > prim.LastUpdated)
+                {
+                    // This avatar was marked as leaving the same later than the last update 
+                    // timestamp of this prim. Send a cache check
+                    canUseCached = true;
+                }
+                else if (updateFlags.HasFlag(UpdateFlags.FullUpdate) ||
                     updateFlags.HasFlag(UpdateFlags.Parent) ||
                     updateFlags.HasFlag(UpdateFlags.Scale) ||
                     updateFlags.HasFlag(UpdateFlags.Shape) ||
@@ -1394,19 +1486,49 @@ namespace Simian.Protocols.Linden.Packets
                     llUpdateFlags.HasFlag(LLUpdateFlags.MediaURL) ||
                     llUpdateFlags.HasFlag(LLUpdateFlags.Joint))
                 {
-                    canUseImproved = false;
+                    canUseTerse = false;
                 }
 
-                #endregion UpdateFlags to packet type conversion
+                #endregion Determine packet type
 
                 #region Block Construction
 
-                if (!canUseImproved)
+                if (canUseCached && prim != null)
+                {
+                    cachedUpdateBlocks.Value.Add(new ObjectUpdateCachedPacket.ObjectDataBlock
+                        { CRC = prim.GetCrc(), ID = prim.LocalID });
+                }
+                else if (!canUseTerse)
                 {
                     if (entity is IScenePresence)
-                        objectUpdateBlocks.Value.Add(CreateAvatarObjectUpdateBlock((IScenePresence)entity, presence));
+                    {
+                        IScenePresence thisPresence = (IScenePresence)entity;
+                        ObjectUpdatePacket.ObjectDataBlock block = CreateAvatarObjectUpdateBlock(thisPresence);
+                        block.UpdateFlags = (uint)GetUpdateFlags(thisPresence, presence);
+                        objectUpdateBlocks.Value.Add(block);
+                    }
+                    else if (prim != null)
+                    {
+                        ObjectUpdateCompressedPacket.ObjectDataBlock block = CreateCompressedObjectUpdateBlock(prim, prim.GetCrc());
+                        block.UpdateFlags = (uint)GetUpdateFlags(prim, presence, m_permissions);
+                        compressedUpdateBlocks.Value.Add(block);
+
+                        // ObjectUpdateCompressed doesn't carry velocity or acceleration fields, so
+                        // we need to send a separate terse packet if this prim has a non-zero 
+                        // velocity or acceleration
+                        if (prim.Velocity != Vector3.Zero || prim.Acceleration != Vector3.Zero)
+                            terseUpdateBlocks.Value.Add(CreateTerseUpdateBlock(entity, false));
+
+                        //ObjectUpdatePacket.ObjectDataBlock block = CreateObjectUpdateBlock(prim);
+                        //block.UpdateFlags = (uint)GetUpdateFlags(prim, presence, m_permissions);
+                        //block.CRC = prim.GetCrc();
+                        //objectUpdateBlocks.Value.Add(block);
+                    }
                     else
-                        objectUpdateBlocks.Value.Add(CreateObjectUpdateBlock(entity, presence));
+                    {
+                        // TODO: Create a generic representation for non-LLPrimitive entities?
+                        continue;
+                    }
                 }
                 else
                 {
@@ -1416,11 +1538,8 @@ namespace Simian.Protocols.Linden.Packets
                 #endregion Block Construction
 
                 // Unset CreateSelected after it has been sent once
-                if (entity is LLPrimitive)
-                {
-                    LLPrimitive prim = (LLPrimitive)entity;
+                if (prim != null)
                     prim.Prim.Flags &= ~PrimFlags.CreateSelected;
-                }
             }
 
             #region Packet Sending
@@ -1467,6 +1586,21 @@ namespace Simian.Protocols.Linden.Packets
                 packet.RegionData.RegionHandle = Util.PositionToRegionHandle(m_scene.MinPosition);
                 packet.RegionData.TimeDilation = timeDilation;
                 packet.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[blocks.Count];
+
+                for (int i = 0; i < blocks.Count; i++)
+                    packet.ObjectData[i] = blocks[i];
+
+                m_udp.SendPacket(agent, packet, ThrottleCategory.Task, true);
+            }
+
+            if (cachedUpdateBlocks.IsValueCreated)
+            {
+                List<ObjectUpdateCachedPacket.ObjectDataBlock> blocks = cachedUpdateBlocks.Value;
+
+                ObjectUpdateCachedPacket packet = new ObjectUpdateCachedPacket();
+                packet.RegionData.RegionHandle = Util.PositionToRegionHandle(m_scene.MinPosition);
+                packet.RegionData.TimeDilation = timeDilation;
+                packet.ObjectData = new ObjectUpdateCachedPacket.ObjectDataBlock[blocks.Count];
 
                 for (int i = 0; i < blocks.Count; i++)
                     packet.ObjectData[i] = blocks[i];
@@ -1528,8 +1662,10 @@ namespace Simian.Protocols.Linden.Packets
             m_udp.SendPacket(agent, kill, ThrottleCategory.Task, true);
         }
 
-        private void SendEntityTo(LLAgent agent, ISceneEntity entity)
+        private void SendEntityTo(LLAgent agent, ISceneEntity entity, bool allowCachedUpdate)
         {
+            uint extraFlags = (allowCachedUpdate) ? 0 : (uint)LLUpdateFlags.NoCachedUpdate;
+
             m_scene.CreateInterestListEventFor(agent,
                 new InterestListEvent
                 (
@@ -1537,7 +1673,7 @@ namespace Simian.Protocols.Linden.Packets
                     OBJECT_UPDATE,
                     entity.ScenePosition,
                     entity.Scale,
-                    new EntityAddOrUpdateArgs { Entity = entity, UpdateFlags = UpdateFlags.FullUpdate, ExtraFlags = 0, IsNew = false }
+                    new EntityAddOrUpdateArgs { Entity = entity, UpdateFlags = UpdateFlags.FullUpdate, ExtraFlags = extraFlags, IsNew = false }
                 )
             );
         }
@@ -1546,7 +1682,7 @@ namespace Simian.Protocols.Linden.Packets
 
         #region Object Update Creation
 
-        private ObjectUpdatePacket.ObjectDataBlock CreateAvatarObjectUpdateBlock(IScenePresence presence, IScenePresence sendingTo)
+        public ObjectUpdatePacket.ObjectDataBlock CreateAvatarObjectUpdateBlock(IScenePresence presence)
         {
             byte[] objectData = new byte[76];
 
@@ -1601,183 +1737,206 @@ namespace Simian.Protocols.Linden.Packets
             update.TextColor = new byte[4];
             update.TextureAnim = Utils.EmptyBytes;
             update.TextureEntry = Utils.EmptyBytes; // TODO: TextureEntry support
-            update.UpdateFlags = (uint)(PrimFlags.CastShadows | PrimFlags.InventoryEmpty | PrimFlags.Money | PrimFlags.Physics);
-
-            if (presence == sendingTo)
-                update.UpdateFlags |= (uint)PrimFlags.ObjectYouOwner;
 
             return update;
         }
 
-        private ObjectUpdatePacket.ObjectDataBlock CreateObjectUpdateBlock(ISceneEntity entity, IScenePresence sendingTo)
+        public static ObjectUpdateCompressedPacket.ObjectDataBlock CreateCompressedObjectUpdateBlock(LLPrimitive entity, uint crc)
         {
-            Primitive prim;
+            Primitive prim = entity.Prim;
 
-            if (entity.RelativeRotation == INVALID_ROT)
-            {
-                m_log.Warn("Correcting an invalid rotation for " + entity.Name + " (" + entity.ID + ")");
-                entity.RelativeRotation = Quaternion.Identity;
-            }
+            #region Size calculation and field serialization
 
-            #region LLPrimitive / Generic Support
+            CompressedFlags flags = 0;
+            int size = 84;
+            byte[] textBytes = null;
+            byte[] mediaURLBytes = null;
+            byte[] particleBytes = null;
+            byte[] extraParamBytes = null;
+            byte[] nameValueBytes = null;
+            byte[] textureBytes = null;
+            byte[] textureAnimBytes = null;
 
-            if (entity is LLPrimitive)
-            {
-                prim = ((LLPrimitive)entity).Prim;
-            }
-            else
-            {
-                prim = m_proxyPrim;
-                prim.Position = entity.RelativePosition;
-                prim.Rotation = entity.RelativeRotation;
-                prim.Scale = entity.Scale;
+            flags |= CompressedFlags.HasAngularVelocity;
+            size += 12;
 
-                if (entity is ILinkable)
-                {
-                    ILinkable parent = ((ILinkable)entity).Parent;
-                    if (parent != null)
-                        prim.ParentID = parent.LocalID;
-                }
-
-                if (entity is IPhysical)
-                {
-                    IPhysical physical = (IPhysical)entity;
-
-                    prim.Velocity = physical.Velocity;
-                    prim.Acceleration = physical.Acceleration;
-                    prim.AngularVelocity = physical.AngularVelocity;
-                }
-            }
-
-            #endregion LLPrimitive / Generic Support
-
-            #region ObjectData
-
-            byte[] objectData = new byte[60];
-
-            prim.Position.ToBytes(objectData, 0);
-            prim.Velocity.ToBytes(objectData, 12);
-            prim.Acceleration.ToBytes(objectData, 24);
-            prim.Rotation.ToBytes(objectData, 36);
-            prim.AngularVelocity.ToBytes(objectData, 48);
-
-            #endregion ObjectData
-
-            #region UpdateFlags
-
-            PrimFlags flags;
-
-            if (entity is LLPrimitive)
-            {
-                flags = m_permissions.GetFlagsFor(sendingTo, (LLPrimitive)entity);
-            }
-            else
-            {
-                flags = PrimFlags.CastShadows | PrimFlags.ObjectCopy | PrimFlags.ObjectTransfer |
-                    PrimFlags.ObjectYouOwner | PrimFlags.ObjectModify | PrimFlags.ObjectMove |
-                    PrimFlags.ObjectOwnerModify;
-            }
-
-            #endregion UpdateFlags
-
-            #region Shape & Misc
-
-            ObjectUpdatePacket.ObjectDataBlock update = new ObjectUpdatePacket.ObjectDataBlock();
-
-            update.ClickAction = (byte)prim.ClickAction;
-            update.CRC = 0;
-            update.ExtraParams = prim.GetExtraParamsBytes();
-            update.FullID = prim.ID;
-            update.Gain = prim.SoundGain;
-            update.ID = prim.LocalID;
-            update.JointAxisOrAnchor = prim.JointAxisOrAnchor;
-            update.JointPivot = prim.JointPivot;
-            update.JointType = (byte)prim.Joint;
-            update.Material = (byte)prim.PrimData.Material;
-            update.MediaURL = (!String.IsNullOrEmpty(prim.MediaVersion)) ?
-                Utils.StringToBytes(prim.MediaVersion) :
-                Utils.StringToBytes(prim.MediaURL);
-            update.ObjectData = objectData;
-            update.OwnerID = (prim.Properties != null ? prim.Properties.OwnerID : UUID.Zero);
-            update.ParentID = prim.ParentID;
-            update.PathBegin = Primitive.PackBeginCut(prim.PrimData.PathBegin);
-            update.PathCurve = (byte)prim.PrimData.PathCurve;
-            update.PathEnd = Primitive.PackEndCut(prim.PrimData.PathEnd);
-            update.PathRadiusOffset = Primitive.PackPathTwist(prim.PrimData.PathRadiusOffset);
-            update.PathRevolutions = Primitive.PackPathRevolutions(prim.PrimData.PathRevolutions);
-            update.PathScaleX = Primitive.PackPathScale(prim.PrimData.PathScaleX);
-            update.PathScaleY = Primitive.PackPathScale(prim.PrimData.PathScaleY);
-            update.PathShearX = (byte)Primitive.PackPathShear(prim.PrimData.PathShearX);
-            update.PathShearY = (byte)Primitive.PackPathShear(prim.PrimData.PathShearY);
-            update.PathSkew = Primitive.PackPathTwist(prim.PrimData.PathSkew);
-            update.PathTaperX = Primitive.PackPathTaper(prim.PrimData.PathTaperX);
-            update.PathTaperY = Primitive.PackPathTaper(prim.PrimData.PathTaperY);
-            update.PathTwist = Primitive.PackPathTwist(prim.PrimData.PathTwist);
-            update.PathTwistBegin = Primitive.PackPathTwist(prim.PrimData.PathTwistBegin);
-            update.PCode = (byte)prim.PrimData.PCode;
-            update.ProfileBegin = Primitive.PackBeginCut(prim.PrimData.ProfileBegin);
-            update.ProfileCurve = (byte)prim.PrimData.ProfileCurve;
-            update.ProfileEnd = Primitive.PackEndCut(prim.PrimData.ProfileEnd);
-            update.ProfileHollow = Primitive.PackProfileHollow(prim.PrimData.ProfileHollow);
-            update.PSBlock = prim.ParticleSys.GetBytes();
-            update.TextColor = prim.TextColor.GetBytes(true);
-            update.TextureAnim = prim.TextureAnim.GetBytes();
-            update.TextureEntry = prim.Textures == null ? Utils.EmptyBytes : prim.Textures.GetBytes();
-            update.Radius = prim.SoundRadius;
-            update.Scale = prim.Scale;
-            update.State = prim.PrimData.State;
-            update.Text = Utils.StringToBytes(prim.Text);
-            update.UpdateFlags = (uint)flags;
-
-            if (prim.PrimData.AttachmentPoint != AttachmentPoint.Default)
-                update.NameValue = Utils.StringToBytes("AttachItemID STRING RW SV " + prim.Properties.ItemID);
-            else
-                update.NameValue = Utils.EmptyBytes;
-
-            #endregion Shape & Misc
-
-            if (update.PCode == 0)
-                m_log.Warn("Sending ObjectUpdate with a PCode of 0 for entity " + entity.ID);
-
-            #region Sound-Specific
-
-            if (prim.Sound != UUID.Zero)
-            {
-                update.Sound = prim.Sound;
-                update.OwnerID = prim.OwnerID;
-                update.Gain = prim.SoundGain;
-                update.Radius = prim.SoundRadius;
-                update.Flags = (byte)prim.SoundFlags;
-            }
-
-            #endregion Sound-Specific
-
-            #region PCode-Specific
+            flags |= CompressedFlags.HasParent;
+            size += 4;
 
             switch (prim.PrimData.PCode)
             {
                 case PCode.Grass:
                 case PCode.Tree:
                 case PCode.NewTree:
-                    update.Data = new byte[1];
-                    update.Data[0] = (byte)prim.TreeSpecies;
+                    flags |= CompressedFlags.Tree;
+                    size += 2; // Size byte plus one byte
                     break;
-                default:
-                    if (prim.ScratchPad != null)
-                    {
-                        update.Data = new byte[prim.ScratchPad.Length];
-                        Buffer.BlockCopy(prim.ScratchPad, 0, update.Data, 0, update.Data.Length);
-                    }
-                    else
-                    {
-                        update.Data = new byte[0];
-                    }
-                    break;
+                //default:
+                //    flags |= CompressedFlags.ScratchPad;
+                //    size += 1 + prim.ScratchPad.Length; // Size byte plus length
+                //    break;
             }
 
-            #endregion PCode-Specific
+            flags |= CompressedFlags.HasText;
+            textBytes = StringToBytesNullTerminated(prim.Text);
+            size += textBytes.Length; // Null-terminated, no size byte
+            size += 4; // Text color
 
-            return update;
+            flags |= CompressedFlags.MediaURL;
+            mediaURLBytes = StringToBytesNullTerminated(prim.MediaURL);
+            size += mediaURLBytes.Length; // Null-terminated, no size byte
+
+            if (prim.ParticleSys.BurstPartCount > 0)
+            {
+                flags |= CompressedFlags.HasParticles;
+                particleBytes = prim.ParticleSys.GetBytes();
+                size += particleBytes.Length; // Should be exactly 86 bytes
+            }
+
+            // Extra Params
+            extraParamBytes = prim.GetExtraParamsBytes();
+            size += extraParamBytes.Length;
+
+            if (prim.Sound != UUID.Zero)
+            {
+                flags |= CompressedFlags.HasSound;
+                size += 25; // SoundID, SoundGain, SoundFlags, SoundRadius
+            }
+
+            if (prim.NameValues != null && prim.NameValues.Length > 0)
+            {
+                flags |= CompressedFlags.HasNameValues;
+                nameValueBytes = StringToBytesNullTerminated(NameValue.NameValuesToString(prim.NameValues));
+                size += nameValueBytes.Length;
+            }
+
+            size += 23; // PrimData
+            size += 4; // Texture Length
+            textureBytes = prim.Textures.GetBytes();
+            size += textureBytes.Length; // Texture Entry
+
+            flags |= CompressedFlags.TextureAnimation;
+            size += 4; // TextureAnim Length
+            textureAnimBytes = prim.TextureAnim.GetBytes();
+            size += textureAnimBytes.Length; // TextureAnim
+
+            #endregion Size calculation and field serialization
+
+            #region Packet serialization
+
+            int pos = 0;
+            byte[] data = new byte[size];
+
+            prim.ID.ToBytes(data, 0); // UUID
+            pos += 16;
+            Utils.UIntToBytes(prim.LocalID, data, pos); // LocalID
+            pos += 4;
+            data[pos++] = (byte)prim.PrimData.PCode; // PCode
+            data[pos++] = prim.PrimData.State; // State
+            Utils.UIntToBytes(crc, data, pos); // CRC
+            pos += 4;
+            data[pos++] = (byte)prim.PrimData.Material; // Material
+            data[pos++] = (byte)prim.ClickAction; // ClickAction
+            prim.Scale.ToBytes(data, pos); // Scale
+            pos += 12;
+            prim.Position.ToBytes(data, pos); // Position
+            pos += 12;
+            prim.Rotation.ToBytes(data, pos); // Rotation
+            pos += 12;
+            Utils.UIntToBytes((uint)flags, data, pos); // Compressed flags
+            pos += 4;
+            prim.OwnerID.ToBytes(data, pos); // OwnerID
+            pos += 16;
+            prim.AngularVelocity.ToBytes(data, pos); // Angular velocity
+            pos += 12;
+            Utils.UIntToBytes(prim.ParentID, data, pos); // ParentID
+            pos += 4;
+
+            if ((flags & CompressedFlags.Tree) != 0)
+            {
+                data[pos++] = 1;
+                data[pos++] = (byte)prim.TreeSpecies;
+            }
+            //else if ((flags & CompressedFlags.ScratchPad) != 0)
+            //{
+            //    data[pos++] = (byte)prim.ScratchPad.Length;
+            //    Buffer.BlockCopy(prim.ScratchPad, 0, data, pos, prim.ScratchPad.Length);
+            //    pos += prim.ScratchPad.Length;
+            //}
+
+            Buffer.BlockCopy(textBytes, 0, data, pos, textBytes.Length);
+            pos += textBytes.Length;
+            prim.TextColor.ToBytes(data, pos, false);
+            pos += 4;
+
+            Buffer.BlockCopy(mediaURLBytes, 0, data, pos, mediaURLBytes.Length);
+            pos += mediaURLBytes.Length;
+
+            if (particleBytes != null)
+            {
+                Buffer.BlockCopy(particleBytes, 0, data, pos, particleBytes.Length);
+                pos += particleBytes.Length;
+            }
+
+            // Extra Params
+            Buffer.BlockCopy(extraParamBytes, 0, data, pos, extraParamBytes.Length);
+            pos += extraParamBytes.Length;
+
+            if ((flags & CompressedFlags.HasSound) != 0)
+            {
+                prim.Sound.ToBytes(data, pos);
+                pos += 16;
+                Utils.FloatToBytes(prim.SoundGain, data, pos);
+                pos += 4;
+                data[pos++] = (byte)prim.SoundFlags;
+                Utils.FloatToBytes(prim.SoundRadius, data, pos);
+                pos += 4;
+            }
+
+            if (nameValueBytes != null)
+            {
+                Buffer.BlockCopy(nameValueBytes, 0, data, pos, nameValueBytes.Length);
+                pos += nameValueBytes.Length;
+            }
+
+            // Path PrimData
+            data[pos++] = (byte)prim.PrimData.PathCurve;
+            Utils.UInt16ToBytes(Primitive.PackBeginCut(prim.PrimData.PathBegin), data, pos); pos += 2;
+            Utils.UInt16ToBytes(Primitive.PackEndCut(prim.PrimData.PathEnd), data, pos); pos += 2;
+            data[pos++] = Primitive.PackPathScale(prim.PrimData.PathScaleX);
+            data[pos++] = Primitive.PackPathScale(prim.PrimData.PathScaleY);
+            data[pos++] = (byte)Primitive.PackPathShear(prim.PrimData.PathShearX);
+            data[pos++] = (byte)Primitive.PackPathShear(prim.PrimData.PathShearY);
+            data[pos++] = (byte)Primitive.PackPathTwist(prim.PrimData.PathTwist);
+            data[pos++] = (byte)Primitive.PackPathTwist(prim.PrimData.PathTwistBegin);
+            data[pos++] = (byte)Primitive.PackPathTwist(prim.PrimData.PathRadiusOffset);
+            data[pos++] = (byte)Primitive.PackPathTaper(prim.PrimData.PathTaperX);
+            data[pos++] = (byte)Primitive.PackPathTaper(prim.PrimData.PathTaperY);
+            data[pos++] = Primitive.PackPathRevolutions(prim.PrimData.PathRevolutions);
+            data[pos++] = (byte)Primitive.PackPathTwist(prim.PrimData.PathSkew);
+            // Profile PrimData
+            data[pos++] = prim.PrimData.profileCurve;
+            Utils.UInt16ToBytes(Primitive.PackBeginCut(prim.PrimData.ProfileBegin), data, pos); pos += 2;
+            Utils.UInt16ToBytes(Primitive.PackEndCut(prim.PrimData.ProfileEnd), data, pos); pos += 2;
+            Utils.UInt16ToBytes(Primitive.PackProfileHollow(prim.PrimData.ProfileHollow), data, pos); pos += 2;
+
+            // Texture Length
+            Utils.UIntToBytes((uint)textureBytes.Length, data, pos);
+            pos += 4;
+            // Texture Entry
+            Buffer.BlockCopy(textureBytes, 0, data, pos, textureBytes.Length);
+            pos += textureBytes.Length;
+
+            Utils.UIntToBytes((uint)textureAnimBytes.Length, data, pos);
+            pos += 4;
+            Buffer.BlockCopy(textureAnimBytes, 0, data, pos, textureAnimBytes.Length);
+            pos += textureAnimBytes.Length;
+
+            System.Diagnostics.Debug.Assert(pos == size, "Got a pos of " + pos + " instead of " + size);
+
+            #endregion Packet serialization
+
+            return new ObjectUpdateCompressedPacket.ObjectDataBlock { Data = data };
         }
 
         private ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateTerseUpdateBlock(ISceneEntity entity, bool withTexture)
@@ -1889,7 +2048,88 @@ namespace Simian.Protocols.Linden.Packets
             return block;
         }
 
+        private static PrimFlags GetUpdateFlags(IScenePresence presence, IScenePresence sendingTo)
+        {
+            PrimFlags flags = PrimFlags.CastShadows | PrimFlags.InventoryEmpty | PrimFlags.Money | PrimFlags.Physics;
+
+            if (presence == sendingTo)
+                flags |= PrimFlags.ObjectYouOwner;
+
+            return flags;
+        }
+
+        private static PrimFlags GetUpdateFlags(LLPrimitive prim, IScenePresence sendingTo, LLPermissions m_permissions)
+        {
+            PrimFlags flags;
+
+            if (m_permissions != null && sendingTo != null)
+            {
+                flags = m_permissions.GetFlagsFor(sendingTo, prim);
+            }
+            else
+            {
+                flags = PrimFlags.CastShadows | PrimFlags.ObjectCopy | PrimFlags.ObjectTransfer |
+                    PrimFlags.ObjectYouOwner | PrimFlags.ObjectModify | PrimFlags.ObjectMove |
+                    PrimFlags.ObjectOwnerModify;
+            }
+
+            return flags;
+        }
+
         #endregion Object Update Creation
+
+        #region Avatar Tracking
+
+        private void SerializeRecentAvatars()
+        {
+            if (m_dataStore != null)
+            {
+                OSDMap map = new OSDMap();
+
+                lock (m_recentAvatars)
+                {
+                    int i = 0;
+                    foreach (KeyValuePair<UUID, DateTime> kvp in m_recentAvatars)
+                    {
+                        if (i++ >= AVATAR_TRACKING_COUNT)
+                            break;
+                        map[kvp.Key.ToString()] = kvp.Value;
+                    }
+                }
+
+                m_dataStore.BeginSerialize(new SerializedData
+                {
+                    StoreID = m_scene.ID,
+                    Section = "avatarhistory",
+                    Name = "avatarhistory",
+                    Data = System.Text.Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(map)),
+                    ContentType = "application/llsd+json",
+                    Version = 1,
+                });
+            }
+        }
+
+        private void DeserializeRecentAvatars()
+        {
+            if (m_dataStore != null)
+            {
+                SerializedData item = m_dataStore.DeserializeOne(m_scene.ID, "avatarhistory");
+                if (item != null)
+                {
+                    using (System.IO.MemoryStream stream = new System.IO.MemoryStream(item.Data))
+                    {
+                        OSDMap map = OSDParser.DeserializeJson(stream) as OSDMap;
+                        if (map != null)
+                        {
+                            foreach (KeyValuePair<string, OSD> kvp in map)
+                                m_recentAvatars[UUID.Parse(kvp.Key)] = kvp.Value;
+                        }
+                    }
+                }
+            }
+        }
+
+        #endregion Avatar Tracking
 
         private QueuedInterestListEvent ObjectUpdateCombiner(QueuedInterestListEvent currentData, QueuedInterestListEvent newData)
         {
@@ -1937,7 +2177,7 @@ namespace Simian.Protocols.Linden.Packets
                     {
                         m_log.Warn(agent.Name + " unauthorized to modify prim " + localIDs[i] + ", sending reset packet");
 
-                        SendEntityTo(agent, prim);
+                        SendEntityTo(agent, prim, false);
                         success = false;
                     }
                 }
@@ -1976,6 +2216,15 @@ namespace Simian.Protocols.Linden.Packets
             }
 
             return true;
+        }
+
+        private static byte[] StringToBytesNullTerminated(string str)
+        {
+            byte[] data = Utils.StringToBytes(str);
+            if (data.Length > 0)
+                return data;
+
+            return new byte[1];
         }
     }
 }

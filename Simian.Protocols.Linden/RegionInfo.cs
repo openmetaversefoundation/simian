@@ -42,14 +42,8 @@ namespace Simian.Protocols.Linden
         private IDataStore m_dataStore;
 
         public UUID OwnerID;
-        public string ProductName;
-        public string ProductSKU;
         public RegionFlags RegionFlags;
         public SimAccess SimAccess;
-        public UUID TerrainBase0;
-        public UUID TerrainBase1;
-        public UUID TerrainBase2;
-        public UUID TerrainBase3;
         public UUID TerrainDetail0;
         public UUID TerrainDetail1;
         public UUID TerrainDetail2;
@@ -63,6 +57,9 @@ namespace Simian.Protocols.Linden
         public float TerrainStartHeight10;
         public float TerrainStartHeight11;
         public uint ObjectCapacity;
+        public uint MaxAgents;
+        public bool UseFixedSun;
+        public bool UseEstateSun;
 
         public float WaterHeight
         {
@@ -100,11 +97,16 @@ namespace Simian.Protocols.Linden
 
         private void InitializeDefaults()
         {
-            ProductName = "Simian";
-            ProductSKU = String.Empty;
+            RegionFlags =
+                RegionFlags.AllowLandmark |
+                RegionFlags.AllowSetHome |
+                RegionFlags.AllowDirectTeleport |
+                RegionFlags.AllowParcelChanges |
+                RegionFlags.ExternallyVisible |
+                RegionFlags.MainlandVisible |
+                RegionFlags.PublicAllowed;
 
-            RegionFlags = RegionFlags.SkipCollisions | RegionFlags.SkipScripts;
-            SimAccess = SimAccess.Min;
+            SimAccess = SimAccess.PG;
 
             TerrainHeightRange00 = 0f;
             TerrainHeightRange01 = 20f;
@@ -119,6 +121,7 @@ namespace Simian.Protocols.Linden
             WaterHeight = 20f;
 
             ObjectCapacity = UInt32.MaxValue;
+            MaxAgents = Byte.MaxValue;
         }
 
         private void Serialize()
@@ -127,28 +130,26 @@ namespace Simian.Protocols.Linden
             {
                 OSDMap map = new OSDMap();
 
-                map["owner_id"] = OSD.FromUUID(OwnerID);
-                map["product_name"] = OSD.FromString(ProductName);
-                map["product_sku"] = OSD.FromString(ProductSKU);
-                map["region_flags"] = OSD.FromUInteger((uint)RegionFlags);
-                map["sim_access"] = OSD.FromInteger((int)SimAccess);
-                map["terrain_base_0"] = OSD.FromUUID(TerrainBase0);
-                map["terrain_base_1"] = OSD.FromUUID(TerrainBase1);
-                map["terrain_base_2"] = OSD.FromUUID(TerrainBase2);
-                map["terrain_base_3"] = OSD.FromUUID(TerrainBase3);
-                map["terrain_detail_0"] = OSD.FromUUID(TerrainDetail0);
-                map["terrain_detail_1"] = OSD.FromUUID(TerrainDetail1);
-                map["terrain_detail_2"] = OSD.FromUUID(TerrainDetail2);
-                map["terrain_detail_3"] = OSD.FromUUID(TerrainDetail3);
-                map["terrain_height_range_00"] = OSD.FromReal(TerrainHeightRange00);
-                map["terrain_height_range_01"] = OSD.FromReal(TerrainHeightRange01);
-                map["terrain_height_range_10"] = OSD.FromReal(TerrainHeightRange10);
-                map["terrain_height_range_11"] = OSD.FromReal(TerrainHeightRange11);
-                map["terrain_start_height_00"] = OSD.FromReal(TerrainStartHeight00);
-                map["terrain_start_height_01"] = OSD.FromReal(TerrainStartHeight01);
-                map["terrain_start_height_10"] = OSD.FromReal(TerrainStartHeight10);
-                map["terrain_start_height_11"] = OSD.FromReal(TerrainStartHeight11);
-                map["water_height"] = OSD.FromReal(WaterHeight);
+                map["owner_id"] = OwnerID;
+                map["region_flags"] = (int)(uint)RegionFlags;
+                map["sim_access"] = (int)SimAccess;
+                map["terrain_detail_0"] = TerrainDetail0;
+                map["terrain_detail_1"] = TerrainDetail1;
+                map["terrain_detail_2"] = TerrainDetail2;
+                map["terrain_detail_3"] = TerrainDetail3;
+                map["terrain_height_range_00"] = TerrainHeightRange00;
+                map["terrain_height_range_01"] = TerrainHeightRange01;
+                map["terrain_height_range_10"] = TerrainHeightRange10;
+                map["terrain_height_range_11"] = TerrainHeightRange11;
+                map["terrain_start_height_00"] = TerrainStartHeight00;
+                map["terrain_start_height_01"] = TerrainStartHeight01;
+                map["terrain_start_height_10"] = TerrainStartHeight10;
+                map["terrain_start_height_11"] = TerrainStartHeight11;
+                map["water_height"] = WaterHeight;
+                map["object_capacity"] = (int)ObjectCapacity;
+                map["avatar_capacity"] = (int)MaxAgents;
+                map["use_fixed_sun"] = UseFixedSun;
+                map["use_estate_sun"] = UseEstateSun;
 
                 m_dataStore.BeginSerialize(new SerializedData
                 {
@@ -174,29 +175,31 @@ namespace Simian.Protocols.Linden
 
                     if (map != null)
                     {
-                        OwnerID = map["owner_id"].AsUUID();
-                        ProductName = map["product_name"].AsString();
-                        ProductSKU = map["product_sku"].AsString();
-                        RegionFlags = (RegionFlags)map["region_flags"].AsUInteger();
-                        SimAccess = (SimAccess)map["sim_access"].AsInteger();
-                        TerrainBase0 = map["terrain_base_0"].AsUUID();
-                        TerrainBase1 = map["terrain_base_1"].AsUUID();
-                        TerrainBase2 = map["terrain_base_2"].AsUUID();
-                        TerrainBase3 = map["terrain_base_3"].AsUUID();
-                        TerrainDetail0 = map["terrain_detail_0"].AsUUID();
-                        TerrainDetail1 = map["terrain_detail_1"].AsUUID();
-                        TerrainDetail2 = map["terrain_detail_2"].AsUUID();
-                        TerrainDetail3 = map["terrain_detail_3"].AsUUID();
-                        TerrainHeightRange00 = (float)map["terrain_height_range_00"].AsReal();
-                        TerrainHeightRange01 = (float)map["terrain_height_range_01"].AsReal();
-                        TerrainHeightRange10 = (float)map["terrain_height_range_10"].AsReal();
-                        TerrainHeightRange11 = (float)map["terrain_height_range_11"].AsReal();
-                        TerrainStartHeight00 = (float)map["terrain_start_height_00"].AsReal();
-                        TerrainStartHeight01 = (float)map["terrain_start_height_01"].AsReal();
-                        TerrainStartHeight10 = (float)map["terrain_start_height_10"].AsReal();
-                        TerrainStartHeight11 = (float)map["terrain_start_height_11"].AsReal();
-                        WaterHeight = (float)map["water_height"].AsReal();
+                        OwnerID = map["owner_id"];
+                        RegionFlags = (RegionFlags)(uint)map["region_flags"];
+                        SimAccess = (SimAccess)(int)map["sim_access"];
+                        TerrainDetail0 = map["terrain_detail_0"];
+                        TerrainDetail1 = map["terrain_detail_1"];
+                        TerrainDetail2 = map["terrain_detail_2"];
+                        TerrainDetail3 = map["terrain_detail_3"];
+                        TerrainHeightRange00 = map["terrain_height_range_00"];
+                        TerrainHeightRange01 = map["terrain_height_range_01"];
+                        TerrainHeightRange10 = map["terrain_height_range_10"];
+                        TerrainHeightRange11 = map["terrain_height_range_11"];
+                        TerrainStartHeight00 = map["terrain_start_height_00"];
+                        TerrainStartHeight01 = map["terrain_start_height_01"];
+                        TerrainStartHeight10 = map["terrain_start_height_10"];
+                        TerrainStartHeight11 = map["terrain_start_height_11"];
+                        WaterHeight = map["water_height"];
+                        ObjectCapacity = map["object_capacity"];
+                        MaxAgents = map["avatar_capacity"];
+                        UseFixedSun = map["use_fixed_sun"];
+                        UseEstateSun = map["use_estate_sun"];
                     }
+
+                    // Make sure the simulator access level is set
+                    if (SimAccess == SimAccess.Unknown)
+                        SimAccess = SimAccess.PG;
                 }
             }
         }

@@ -138,7 +138,7 @@ namespace Simian.Protocols.Linden
 
                     if (!done)
                     {
-                        m_log.Debug("Opening event queue connection for " + agent.Name);
+                        //m_log.Debug("Opening event queue connection for " + agent.Name);
 
                         agent.EventQueue.Context = context;
                         agent.EventQueue.Request = request;

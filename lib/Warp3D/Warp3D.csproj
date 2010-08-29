@@ -1,0 +1,170 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+	<PropertyGroup>
+	  <ProjectType>Local</ProjectType>
+	  <ProductVersion>9.0.30729</ProductVersion>
+	  <SchemaVersion>2.0</SchemaVersion>
+	  <ProjectGuid>{641E2F23-0000-0000-0000-000000000000}</ProjectGuid>
+	  <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+	  <ApplicationIcon></ApplicationIcon>
+	  <AssemblyKeyContainerName>
+	  </AssemblyKeyContainerName>
+	  <AssemblyName>Warp3D</AssemblyName>
+	  <DefaultClientScript>JScript</DefaultClientScript>
+	  <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+	  <DefaultTargetSchema>IE50</DefaultTargetSchema>
+	  <DelaySign>false</DelaySign>
+	  <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+	  <OutputType>Library</OutputType>
+	  <AppDesignerFolder></AppDesignerFolder>
+	  <RootNamespace>Warp3D</RootNamespace>
+	  <StartupObject></StartupObject>
+	  <StartArguments></StartArguments>
+	  <FileUpgradeFlags>
+	  </FileUpgradeFlags>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+	  <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	  <BaseAddress>285212672</BaseAddress>
+	  <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+	  <ConfigurationOverrideFile>
+	  </ConfigurationOverrideFile>
+	  <DefineConstants>TRACE;DEBUG</DefineConstants>
+	  <DocumentationFile></DocumentationFile>
+	  <DebugSymbols>True</DebugSymbols>
+	  <FileAlignment>4096</FileAlignment>
+	  <Optimize>False</Optimize>
+	  <OutputPath>bin\Debug\</OutputPath>
+	  <RegisterForComInterop>False</RegisterForComInterop>
+	  <RemoveIntegerChecks>False</RemoveIntegerChecks>
+	  <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+	  <WarningLevel>4</WarningLevel>
+	  <NoStdLib>False</NoStdLib>
+	  <NoWarn></NoWarn>
+	  <PlatformTarget>AnyCPU</PlatformTarget>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+	  <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	  <BaseAddress>285212672</BaseAddress>
+	  <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+	  <ConfigurationOverrideFile>
+	  </ConfigurationOverrideFile>
+	  <DefineConstants></DefineConstants>
+	  <DocumentationFile>Warp3D.xml</DocumentationFile>
+	  <DebugSymbols>False</DebugSymbols>
+	  <FileAlignment>4096</FileAlignment>
+	  <Optimize>True</Optimize>
+	  <OutputPath>bin\Release\</OutputPath>
+	  <RegisterForComInterop>False</RegisterForComInterop>
+	  <RemoveIntegerChecks>False</RemoveIntegerChecks>
+	  <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+	  <WarningLevel>4</WarningLevel>
+	  <NoStdLib>False</NoStdLib>
+	  <NoWarn></NoWarn>
+	  <PlatformTarget>AnyCPU</PlatformTarget>
+	</PropertyGroup>
+	<ItemGroup>
+	  <Reference Include="System" >
+		  <Name>System</Name>
+		<Private>False</Private>
+	  </Reference>
+	  <Reference Include="System.Drawing" >
+		  <Name>System.Drawing</Name>
+		<Private>False</Private>
+	  </Reference>
+	</ItemGroup>
+	<ItemGroup>
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Include="Warp3D.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_3ds_Importer.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Camera.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Color.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_CoreObject.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Edge.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Environment.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_FXLensFlare .cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_FXPlugin.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Light.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Lightmap.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Material.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Math.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Matrix.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Object.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_ObjectFactory.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Quaternion.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Rasterizer.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_RenderPipeline.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Scene.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Screen.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Texture.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_TextureFactory.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_TextureProjector.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_TextureSettings.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Triangle.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Vector.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	  <Compile Include="warp_Vertex.cs">
+		<SubType>Code</SubType>
+	  </Compile>
+	</ItemGroup>
+	<Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
+	<PropertyGroup>
+	  <PreBuildEvent>
+	  </PreBuildEvent>
+	  <PostBuildEvent>
+	  </PostBuildEvent>
+	</PropertyGroup>
+</Project>

@@ -55,5 +55,8 @@ namespace Simian
         Quaternion LastRelativeRotation { get; set; }
         /// <summary>Last ScenePosition before significant movement was last detected</summary>
         Vector3 LastSignificantPosition { get; set; }
+
+        /// <summary>Marks an entity as modified</summary>
+        void MarkAsModified();
     }
 }

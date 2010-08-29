@@ -181,34 +181,5 @@ namespace Simian.Protocols.Linden
 
             return cube;
         }
-
-        /// <summary>
-        /// Calculates a unique hash for a mesh based on its vertex and index
-        /// data
-        /// </summary>
-        /// <param name="vertices">Mesh vertices</param>
-        /// <param name="indices">Mesh indices</param>
-        /// <returns></returns>
-        private static ulong CreateMeshKey(Vector3[] vertices, ushort[] indices)
-        {
-            ulong meshKey = 5381; // Nice prime to start with
-
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                Vector3 vertex = vertices[i];
-                meshKey = Util.djb2(meshKey, vertex.X);
-                meshKey = Util.djb2(meshKey, vertex.Y);
-                meshKey = Util.djb2(meshKey, vertex.Z);
-            }
-
-            for (int i = 0; i < indices.Length; i++)
-            {
-                ushort index = indices[i];
-                meshKey = Util.djb2(meshKey, (byte)(index % 256));
-                meshKey = Util.djb2(meshKey, (byte)((index >> 8) % 256));
-            }
-
-            return meshKey;
-        }
     }
 }

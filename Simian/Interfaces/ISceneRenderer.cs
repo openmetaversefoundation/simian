@@ -43,9 +43,13 @@ namespace Simian
         public float FarPlaneDistance;
         public int Width;
         public int Height;
+        public bool Orthographic;
+        public float OrthoWindowWidth;
+        public float OrthoWindowHeight;
 
         public Viewport(Vector3 position, Vector3 lookDirection, float fieldOfView, float farPlaneDist, float nearPlaneDist, int width, int height)
         {
+            // Perspective projection mode
             Position = position;
             LookDirection = lookDirection;
             FieldOfView = fieldOfView;
@@ -53,6 +57,20 @@ namespace Simian
             NearPlaneDistance = nearPlaneDist;
             Width = width;
             Height = height;
+        }
+
+        public Viewport(Vector3 position, Vector3 lookDirection, float farPlaneDist, float nearPlaneDist, int width, int height, float orthoWindowWidth, float orthoWindowHeight)
+        {
+            // Orthographic projection mode
+            Position = position;
+            LookDirection = lookDirection;
+            FarPlaneDistance = farPlaneDist;
+            NearPlaneDistance = nearPlaneDist;
+            Width = width;
+            Height = height;
+            OrthoWindowWidth = orthoWindowWidth;
+            OrthoWindowHeight = orthoWindowHeight;
+            Orthographic = true;
         }
 
         public Point VectorToScreen(Vector3 v)

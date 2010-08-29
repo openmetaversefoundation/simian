@@ -357,11 +357,11 @@ namespace Simian.Protocols.Linden
             if (m_estateClient == null)
                 return false;
 
-            // Try to fetch this scene's estate and check if this presence is a
-            // manager in it
+            // Try to fetch this scene's estate and check if this presence is the
+            // estate owner or a manager
             Estate estate;
             if (m_estateClient.TryGetEstate(m_scene.ID, out estate))
-                return estate.ContainsManager(presence.ID);
+                return estate.OwnerID == presence.ID || estate.ContainsManager(presence.ID);
 
             return false;
         }

@@ -120,6 +120,7 @@ namespace Simian.Protocols.Linden
 
             m_udpServer = new LLUDPServer(this, scene, bindAddress, port, scene.Config, scheduler);
 
+            // Loop until we successfully bind to a port or run out of options
             while (true)
             {
                 //m_log.Debug("Trying to bind LLUDP server to " + bindAddress + ":" + port);
@@ -158,11 +159,14 @@ namespace Simian.Protocols.Linden
                     break;
                 }
             }
+
+            scene.AddCommandHandler("packetlog", PacketLogCommandHandler);
         }
 
         public void Stop()
         {
             m_udpServer.Stop();
+            m_udpServer.Scene.RemoveCommandHandler("packetlog");
         }
 
         public bool TryGetAgent(UUID agentID, out LLAgent agent)
@@ -206,6 +210,29 @@ namespace Simian.Protocols.Linden
             if (callback != null)
                 callback(agent, categories);
         }
+
+        private void PacketLogCommandHandler(string command, string[] args, bool printHelp)
+        {
+            if (printHelp || args.Length == 0)
+            {
+                Console.WriteLine("Toggles packet logging for a scene\n\nExample: packetlog [true/false]");
+            }
+            else
+            {
+                if (args[0].Equals("true", StringComparison.InvariantCultureIgnoreCase) ||
+                    args[0].Equals("on", StringComparison.InvariantCultureIgnoreCase) ||
+                    args[0].Equals("1", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    m_log.Info("Enabling packet logging for " + m_udpServer.Scene.Name);
+                    m_udpServer.LoggingEnabled = true;
+                }
+                else
+                {
+                    m_log.Info("Disabling packet logging for " + m_udpServer.Scene.Name);
+                    m_udpServer.LoggingEnabled = false;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -240,6 +267,9 @@ namespace Simian.Protocols.Linden
         internal IScheduler Scheduler;
         /// <summary>Collection of packet handling callbacks</summary>
         internal PacketEventDictionary PacketEvents;
+
+        /// <summary>Enables/disables logging of all incoming and outgoing packets</summary>
+        internal bool LoggingEnabled;
 
         /// <summary>Reference to the LLUDP class that instantiated this class</summary>
         private readonly LLUDP m_udp;
@@ -748,8 +778,11 @@ namespace Simian.Protocols.Linden
             if (isReliable)
                 Interlocked.Add(ref agent.UnackedBytes, outgoingPacket.Buffer.DataLength);
 
+            if (LoggingEnabled)
+                m_log.Debug("<-- (" + buffer.RemoteEndPoint + ") " + outgoingPacket.Type);
+
             // Put the UDP payload on the wire
-            AsyncBeginSend(buffer);
+            Send(buffer);
 
             // Keep track of when this packet was sent out (right now)
             outgoingPacket.TickCount = Environment.TickCount & Int32.MaxValue;
@@ -821,6 +854,9 @@ namespace Simian.Protocols.Linden
             Interlocked.Increment(ref m_packetsReceived);
             Interlocked.Increment(ref agent.PacketsReceived);
             agent.TickLastPacketReceived = now;
+
+            if (LoggingEnabled)
+                m_log.Debug("--> (" + buffer.RemoteEndPoint + ") " + packet.Type);
 
             #endregion Stats Tracking
 
@@ -937,7 +973,7 @@ namespace Simian.Protocols.Linden
 
             Buffer.BlockCopy(packetData, 0, buffer.Data, 0, length);
 
-            AsyncBeginSend(buffer);
+            Send(buffer);
         }
 
         #endregion Packet Handling

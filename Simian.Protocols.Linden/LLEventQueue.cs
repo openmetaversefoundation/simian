@@ -196,7 +196,7 @@ namespace Simian.Protocols.Linden
             }
             else
             {
-                m_log.Debug("Sending a timeout response over the event queue");
+                //m_log.Debug("Sending a timeout response over the event queue");
 
                 // The 502 response started as a bug in the LL event queue server implementation,
                 // but is now hardcoded into the protocol as the code to use for a timeout

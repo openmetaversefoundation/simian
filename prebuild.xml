@@ -351,6 +351,60 @@
       </Files>
     </Project>
     
+    <!-- Misc -->
+    
+    <Project name="Warp3D" path="Warp3D" type="Library" rootNamespace="Warp3D" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../bin/Release/</OutputPath>
+          <XmlDocFile>Warp3D.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Drawing"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <Project name="Simian.Renderer.Warp3D" path="Simian.Renderer.Warp3D" type="Library" rootNamespace="Simian.Renderer.Warp3D" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Renderer.Warp3D.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+      
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="CSJ2K" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Reference name="Warp3D"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
     <!-- Tests -->
     
     <Project name="Tests.Simian" path="Tests.Simian" type="Library" rootNamespace="Tests.Simian" frameworkVersion="v3_5">

@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using log4net;
 using OpenMetaverse;
+using OpenMetaverse.Packets;
 using OpenMetaverse.StructuredData;
 
 namespace Simian.Protocols.Linden
@@ -55,6 +56,7 @@ namespace Simian.Protocols.Linden
         ExtraData = 1 << 11,
         Sound = 1 << 12,
         Joint = 1 << 13,
+        NoCachedUpdate = 1 << 14
     }
 
     public static class LLUpdateFlagsExtensions
@@ -131,8 +133,10 @@ namespace Simian.Protocols.Linden
         private int m_linkNumber;
         private MapAndArray<UUID, ILinkable> m_children;
 
-        private CircularQueue<Primitive> m_undoSteps = new CircularQueue<Primitive>(8);
-        private CircularQueue<Primitive> m_redoSteps = new CircularQueue<Primitive>(8);
+        private CircularQueue<Primitive> m_undoSteps = new CircularQueue<Primitive>(UNDO_STEPS);
+        private CircularQueue<Primitive> m_redoSteps = new CircularQueue<Primitive>(UNDO_STEPS);
+        private DateTime m_lastUpdated;
+        private volatile uint m_crc;
 
         private Vector3 m_lastPosition;
         private Quaternion m_lastRotation = Quaternion.Identity;
@@ -266,6 +270,16 @@ namespace Simian.Protocols.Linden
         }
         public Vector3 LastSignificantPosition { get; set; }
 
+        public void MarkAsModified()
+        {
+            lock (m_syncRoot)
+            {
+                // Reset the CRC and update the time this entity was last modified
+                m_crc = 0;
+                m_lastUpdated = DateTime.UtcNow;
+            }
+        }
+
         #endregion ISceneEntity Properties
 
         #region ILinkable Properties
@@ -359,6 +373,9 @@ namespace Simian.Protocols.Linden
 
         #endregion IPhysical Properties
 
+        /// <summary>The last time this entity was modified</summary>
+        public DateTime LastUpdated { get { return m_lastUpdated; } }
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -381,6 +398,8 @@ namespace Simian.Protocols.Linden
                 if (scene.TryGetEntity(prim.ParentID, out parent) && parent is ILinkable)
                     SetParent((ILinkable)parent, false, false);
             }
+
+            m_lastUpdated = DateTime.UtcNow;
         }
 
         #region ILinkable Methods
@@ -772,6 +791,9 @@ namespace Simian.Protocols.Linden
             }
             map["media_version"] = OSD.FromString(Prim.MediaVersion);
 
+            map["last_updated"] = OSD.FromDate(m_lastUpdated);
+            map["crc"] = OSD.FromInteger(m_crc);
+
             return map;
         }
 
@@ -923,6 +945,12 @@ namespace Simian.Protocols.Linden
             }
             obj.Prim.MediaVersion = map["media_version"].AsString();
 
+            obj.m_lastUpdated = map["last_updated"].AsDate();
+            obj.m_crc = map["crc"].AsUInteger();
+
+            if (obj.m_lastUpdated <= Utils.Epoch)
+                obj.m_lastUpdated = DateTime.UtcNow;
+
             return obj;
         }
 
@@ -1011,6 +1039,24 @@ namespace Simian.Protocols.Linden
         #endregion Serialization Methods
 
         #region LLPrimitive Methods
+
+        public uint GetCrc()
+        {
+            // Double-checked locking is ok here since m_crc is marked volatile
+            if (m_crc == 0)
+            {
+                lock (m_syncRoot)
+                {
+                    if (m_crc == 0)
+                    {
+                        ObjectUpdateCompressedPacket.ObjectDataBlock block = Packets.Objects.CreateCompressedObjectUpdateBlock(this, 0);
+                        m_crc = Util.Crc32(block.Data, 0, block.Data.Length);
+                    }
+                }
+            }
+
+            return m_crc;
+        }
 
         public int GetNumberOfSides()
         {

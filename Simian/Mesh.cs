@@ -217,6 +217,15 @@ namespace Simian
     {
         public const string MESH_BASE_CONTENT_TYPE = "application/x-simian-mesh";
 
+        private static readonly string[] LOD_NAMES =
+        {
+            String.Empty,
+            "low",
+            "medium",
+            "high",
+            "highest"
+        };
+
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IDataStore m_dataStore;
@@ -240,7 +249,7 @@ namespace Simian
         public bool TryGetRenderingMesh(ulong meshKey, DetailLevel lod, out RenderingMesh mesh)
         {
             UUID dataID = new UUID(meshKey);
-            string contentType = MESH_BASE_CONTENT_TYPE + "-" + lod.ToString().ToLower();
+            string contentType = MESH_BASE_CONTENT_TYPE + "-" + LOD_NAMES[(int)lod];
 
             mesh = null;
 

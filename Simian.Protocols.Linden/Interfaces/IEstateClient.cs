@@ -33,16 +33,44 @@ namespace Simian.Protocols.Linden
 {
     public class Estate
     {
-        public UUID ID;
+        public uint ID;
         public UUID OwnerID;
         public RegionFlags EstateFlags;
         public string Name = String.Empty;
         public string AbuseEmail = String.Empty;
+        public SimAccess AccessFlags = SimAccess.PG;
+        public float SunHour;
+        public bool UseGlobalSun;
+        public bool UseFixedSun;
+        public float TerrainLowerLimit;
+        public float TerrainRaiseLimit;
+        public UUID CovenantID;
+        public uint CovenantTimestamp;
+        public uint MaxAgents;
+        public ushort MatureLevel;
+        public float ObjectBonusFactor;
+        public UUID TerrainDetail0;
+        public UUID TerrainDetail1;
+        public UUID TerrainDetail2;
+        public UUID TerrainDetail3;
+        public float TerrainHeightRange00;
+        public float TerrainHeightRange01;
+        public float TerrainHeightRange10;
+        public float TerrainHeightRange11;
+        public float TerrainStartHeight00;
+        public float TerrainStartHeight01;
+        public float TerrainStartHeight10;
+        public float TerrainStartHeight11;
 
         private HashSet<UUID> m_regionIDs = new HashSet<UUID>();
         private HashSet<UUID> m_groupIDs = new HashSet<UUID>();
         private HashSet<UUID> m_managerIDs = new HashSet<UUID>();
         private HashSet<UUID> m_userIDs = new HashSet<UUID>();
+        private HashSet<UUID> m_bannedUserIDs = new HashSet<UUID>();
+
+        private object m_syncRoot = new object();
+
+        #region Collection Methods
 
         public bool ContainsRegion(UUID regionID)
         {
@@ -61,8 +89,105 @@ namespace Simian.Protocols.Linden
 
         public bool ContainsUser(UUID userID)
         {
-            return m_userIDs.Contains(userID) || m_managerIDs.Contains(userID);
+            return m_userIDs.Contains(userID);
         }
+
+        public bool ContainsBannedUser(UUID userID)
+        {
+            return m_bannedUserIDs.Contains(userID);
+        }
+
+        public bool AddRegion(UUID regionID)
+        {
+            lock (m_syncRoot)
+                return m_regionIDs.Add(regionID);
+        }
+
+        public bool AddGroup(UUID groupID)
+        {
+            lock (m_syncRoot)
+                return m_groupIDs.Add(groupID);
+        }
+
+        public bool AddManager(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_managerIDs.Add(userID);
+        }
+
+        public bool AddUser(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_userIDs.Add(userID);
+        }
+
+        public bool AddBannedUser(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_bannedUserIDs.Add(userID);
+        }
+
+        public bool RemoveRegion(UUID regionID)
+        {
+            lock (m_syncRoot)
+                return m_regionIDs.Remove(regionID);
+        }
+
+        public bool RemoveGroup(UUID groupID)
+        {
+            lock (m_syncRoot)
+                return m_groupIDs.Remove(groupID);
+        }
+
+        public bool RemoveManager(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_managerIDs.Remove(userID);
+        }
+
+        public bool RemoveUser(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_userIDs.Remove(userID);
+        }
+
+        public bool RemoveBannedUser(UUID userID)
+        {
+            lock (m_syncRoot)
+                return m_bannedUserIDs.Remove(userID);
+        }
+
+        public HashSet<UUID> GetRegions()
+        {
+            lock (m_syncRoot)
+                return new HashSet<UUID>(m_regionIDs);
+        }
+
+        public HashSet<UUID> GetGroups()
+        {
+            lock (m_syncRoot)
+                return new HashSet<UUID>(m_groupIDs);
+        }
+
+        public HashSet<UUID> GetManagers()
+        {
+            lock (m_syncRoot)
+                return new HashSet<UUID>(m_managerIDs);
+        }
+
+        public HashSet<UUID> GetUsers()
+        {
+            lock (m_syncRoot)
+                return new HashSet<UUID>(m_userIDs);
+        }
+
+        public HashSet<UUID> GetBannedUsers()
+        {
+            lock (m_syncRoot)
+                return new HashSet<UUID>(m_bannedUserIDs);
+        }
+
+        #endregion Collection Methods
     }
 
     public interface IEstateClient

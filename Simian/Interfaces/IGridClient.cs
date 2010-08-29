@@ -27,6 +27,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using OpenMetaverse;
 
 namespace Simian
@@ -41,5 +42,6 @@ namespace Simian
         bool TryGetSceneNear(Vector3d position, bool onlyEnabled, out SceneInfo sceneInfo);
         bool TryGetRegionRange(Vector3d minPosition, Vector3d maxPosition, out IList<SceneInfo> scenes);
         SceneInfo[] SearchScenes(string query, int maxNumber, bool onlyEnabled);
+        bool AddOrUpdateMapTile(SceneInfo sceneInfo, Image mapTile);
     }
 }

@@ -32,6 +32,7 @@ using System.Threading;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Assets;
+using Simian.Protocols.Linden.Packets;
 
 namespace Simian.Protocols.Linden
 {
@@ -47,6 +48,9 @@ namespace Simian.Protocols.Linden
         private IPrimMesher m_primMesher;
         private IAssetClient m_assetClient;
         private ITerrain m_terrain;
+        private RegionInfo m_regionInfo;
+        private LLUDP m_udp;
+        private LLPermissions m_permissions;
         private float m_lastPercent;
         private long m_lastBytes;
         private DateTime m_lastTimestamp;
@@ -72,6 +76,9 @@ namespace Simian.Protocols.Linden
 
             m_primMesher = m_scene.GetSceneModule<IPrimMesher>();
             m_terrain = m_scene.GetSceneModule<ITerrain>();
+            m_regionInfo = m_scene.GetSceneModule<RegionInfo>();
+            m_udp = m_scene.GetSceneModule<LLUDP>();
+            m_permissions = m_scene.GetSceneModule<LLPermissions>();
 
             m_scene.AddCommandHandler("loadoar", LoadOARHandler);
         }
@@ -113,7 +120,7 @@ namespace Simian.Protocols.Linden
                     m_lastPercent = 0f;
                     m_lastBytes = 0;
                     m_lastTimestamp = DateTime.UtcNow;
-                    OarFile.UnpackageArchive(filename, AssetLoadedHandler, TerrainLoadedHandler, ObjectLoadedHandler);
+                    OarFile.UnpackageArchive(filename, AssetLoadedHandler, TerrainLoadedHandler, ObjectLoadedHandler, SettingsHandler);
                 }
                 catch (Exception ex)
                 {
@@ -205,6 +212,53 @@ namespace Simian.Protocols.Linden
             PrintProgress(bytesRead, totalBytes);
         }
 
+        private void SettingsHandler(string regionName, RegionSettings settings)
+        {
+            if (m_regionInfo != null)
+            {
+                m_regionInfo.MaxAgents = (uint)settings.AgentLimit;
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.AllowDamage, settings.AllowDamage);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.AllowParcelChanges, settings.AllowLandJoinDivide);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.BlockLandResell, !settings.AllowLandResell);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.BlockParcelSearch, settings.BlockLandShowInSearch);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.BlockTerraform, settings.BlockTerraform);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.SkipCollisions, settings.DisableCollisions);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.SkipPhysics, settings.DisablePhysics);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.SkipScripts, settings.DisableScripts);
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.SunFixed, settings.FixedSun);
+                //settings.MaturityRating
+                //settings.ObjectBonus
+                m_regionInfo.RegionFlags = ToggleRegionFlag(m_regionInfo.RegionFlags, RegionFlags.RestrictPushObject, settings.RestrictPushing);
+                m_regionInfo.TerrainDetail0 = settings.TerrainDetail0;
+                m_regionInfo.TerrainDetail1 = settings.TerrainDetail1;
+                m_regionInfo.TerrainDetail2 = settings.TerrainDetail2;
+                m_regionInfo.TerrainDetail3 = settings.TerrainDetail3;
+                m_regionInfo.TerrainHeightRange00 = settings.TerrainHeightRange00;
+                m_regionInfo.TerrainHeightRange01 = settings.TerrainHeightRange01;
+                m_regionInfo.TerrainHeightRange10 = settings.TerrainHeightRange10;
+                m_regionInfo.TerrainHeightRange11 = settings.TerrainHeightRange11;
+                m_regionInfo.TerrainStartHeight00 = settings.TerrainStartHeight00;
+                m_regionInfo.TerrainStartHeight01 = settings.TerrainStartHeight01;
+                m_regionInfo.TerrainStartHeight10 = settings.TerrainStartHeight10;
+                m_regionInfo.TerrainStartHeight11 = settings.TerrainStartHeight11;
+                //settings.TerrainLowerLimit
+                //settings.TerrainRaiseLimit
+                m_regionInfo.UseEstateSun = settings.UseEstateSun;
+                m_regionInfo.WaterHeight = settings.WaterHeight;
+
+                if (m_udp != null)
+                {
+                    m_scene.ForEachPresence(
+                        delegate(IScenePresence presence)
+                        {
+                            if (presence is LLAgent)
+                                Estates.SendRegionHandshake((LLAgent)presence, m_udp, m_scene, m_regionInfo, m_permissions);
+                        }
+                    );
+                }
+            }
+        }
+
         private void PrintProgress(long bytesRead, long totalBytes)
         {
             float percent = (float)bytesRead / (float)totalBytes;
@@ -232,6 +286,13 @@ namespace Simian.Protocols.Linden
             T[] result = new T[totalSize / size];
             Buffer.BlockCopy(array, 0, result, 0, totalSize);
             return result;
+        }
+
+        private static RegionFlags ToggleRegionFlag(RegionFlags currentFlags, RegionFlags flag, bool enable)
+        {
+            return (enable)
+                ? currentFlags | flag
+                : currentFlags & ~flag;
         }
     }
 }

@@ -43,6 +43,7 @@ namespace Simian.Connectors.Standalone
 
         private Simian m_simian;
         private ISceneFactory m_sceneFactory;
+        private IAssetClient m_assetClient;
         private IHttpServer m_httpServer;
 
         public bool Start(Simian simian)
@@ -62,6 +63,8 @@ namespace Simian.Connectors.Standalone
                 m_log.Error("StandaloneGridClient requires an ISceneFactory");
                 return false;
             }
+
+            m_assetClient = simian.GetAppModule<IAssetClient>();
 
             return true;
         }
@@ -212,6 +215,50 @@ namespace Simian.Connectors.Standalone
             return sceneInfos;
         }
 
+        public bool AddOrUpdateMapTile(SceneInfo sceneInfo, Image mapTile)
+        {
+            if (m_assetClient == null)
+                return false;
+
+            int zoomLevel = 1;
+            uint x = (uint)sceneInfo.MinPosition.X / 256u;
+            uint y = (uint)sceneInfo.MinPosition.Y / 256u;
+
+            byte[] pngData;
+            using (MemoryStream stream = new MemoryStream())
+            {
+                mapTile.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                pngData = stream.ToArray();
+            }
+
+            Asset asset = new Asset
+            {
+                ContentType = "image/png",
+                CreationDate = DateTime.UtcNow,
+                CreatorID = sceneInfo.ID,
+                Data = pngData,
+                ID = TileNameToUUID(zoomLevel, x, y)
+            };
+
+            // TODO: Create and store the other zoom levels
+            return m_assetClient.StoreAsset(asset);
+        }
+
         #endregion IGridClient Members
+
+        #region Map Tile Handling
+
+        private static UUID TileNameToUUID(int zoomLevel, uint x, uint y)
+        {
+            byte[] data = new byte[16];
+
+            Utils.IntToBytes(zoomLevel, data, 4);
+            Utils.UIntToBytes(x, data, 8);
+            Utils.UIntToBytes(y, data, 12);
+
+            return new UUID(data, 0);
+        }
+
+        #endregion Map Tile Handling
     }
 }

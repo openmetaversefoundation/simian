@@ -98,5 +98,130 @@ namespace Simian.Scripting.Linden
             }
         }
 
+        [ScriptMethod]
+        public string llDeleteSubString(string src, int start, int end)
+        {
+            if (start < 0)
+                start = src.Length + start;
+
+            if (end < 0)
+                end = src.Length + end;
+
+            if (start <= end)
+            {
+                if (end < 0 || start >= src.Length)
+                    return src;
+
+                if (start < 0)
+                    start = 0;
+
+                if (end >= src.Length)
+                    end = src.Length - 1;
+
+                return src.Remove(start, end - start + 1);
+            }
+            else
+            {
+                if (start < 0 || end >= src.Length)
+                    return String.Empty;
+
+                if (end > 0)
+                {
+                    if (start < src.Length)
+                        return src.Remove(start).Remove(0, end + 1);
+                    else
+                        return src.Remove(0, end + 1);
+                }
+                else
+                {
+                    if (start < src.Length)
+                        return src.Remove(start);
+                    else
+                        return src;
+                }
+            }
+        }
+
+        [ScriptMethod]
+        public string llInsertString(string dest, int index, string src)
+        {
+            if (index < 0)
+            {
+                index = dest.Length + index;
+
+                if (index < 0)
+                    return src + dest;
+            }
+
+            if (index >= dest.Length)
+                return dest + src;
+
+            return dest.Substring(0, index) + src + dest.Substring(index);
+        }
+
+        [ScriptMethod]
+        public string llStringTrim(string src, int type)
+        {
+            if (type == LSLScriptBase.STRING_TRIM_HEAD)
+                return src.TrimStart();
+            else if (type == LSLScriptBase.STRING_TRIM_TAIL)
+                return src.TrimEnd();
+            else if (type == LSLScriptBase.STRING_TRIM)
+                return src.Trim();
+            else
+                return src;
+        }
+
+        [ScriptMethod]
+        public int llSubStringIndex(string source, string pattern)
+        {
+            return source.IndexOf(pattern);
+        }
+
+        [ScriptMethod]
+        public string llStringToBase64(string str)
+        {
+            try { return Convert.ToBase64String(Encoding.UTF8.GetBytes(str)); }
+            catch (Exception e) { throw new Exception("Error in base64Encode" + e.Message); }
+        }
+
+        [ScriptMethod]
+        public string llBase64ToString(string str)
+        {
+            try
+            {
+                Decoder utf8Decode = UTF8Encoding.UTF8.GetDecoder();
+
+                byte[] data = Convert.FromBase64String(str);
+                int charCount = utf8Decode.GetCharCount(data, 0, data.Length);
+                char[] chars = new char[charCount];
+
+                utf8Decode.GetChars(data, 0, data.Length, chars, 0);
+                return new String(chars);
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Error in base64Decode" + e.Message);
+            }
+        }
+
+        [ScriptMethod]
+        public string llXorBase64StringsCorrect(string str1, string str2)
+        {
+            string ret = String.Empty;
+            string src1 = llBase64ToString(str1);
+            string src2 = llBase64ToString(str2);
+            int c = 0;
+
+            for (int i = 0; i < src1.Length; i++)
+            {
+                ret += (char)(src1[i] ^ src2[c]);
+
+                if (++c >= src2.Length)
+                    c = 0;
+            }
+
+            return llStringToBase64(ret);
+        }
     }
 }

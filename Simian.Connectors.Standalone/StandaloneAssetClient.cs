@@ -269,8 +269,13 @@ namespace Simian.Connectors.Standalone
                         UUID assetID = ParseUUIDFromFilename(filename);
                         string contentType = m_simian.ExtensionToContentType(Path.GetExtension(filename).TrimStart('.'));
                         byte[] sha256 = Utils.SHA256(data);
+                        Asset asset;
 
-                        Asset asset = new Asset
+                        // Check if we already have this asset stored
+                        if (TryGetAssetMetadata(assetID, contentType, out asset) && CompareBuffers(sha256, asset.SHA256))
+                            continue;
+
+                        asset = new Asset
                         {
                             ID = assetID,
                             ContentType = contentType,
@@ -292,6 +297,20 @@ namespace Simian.Connectors.Standalone
             {
                 m_log.Error("Error loading default asset set: " + ex.Message);
             }
+        }
+
+        private static bool CompareBuffers(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length)
+                return false;
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                    return false;
+            }
+
+            return true;
         }
 
         private static UUID ParseUUIDFromFilename(string filename)
