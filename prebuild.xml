@@ -353,7 +353,7 @@
     
     <!-- Misc -->
     
-    <Project name="Warp3D" path="Warp3D" type="Library" rootNamespace="Warp3D" frameworkVersion="v3_5">
+    <Project name="Warp3D" path="lib/Warp3D" type="Library" rootNamespace="Warp3D" frameworkVersion="v3_5">
       <Configuration name="Debug">
         <Options>
           <OutputPath>../../bin/Debug/</OutputPath>
