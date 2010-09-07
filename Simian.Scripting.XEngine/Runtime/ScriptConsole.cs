@@ -64,6 +64,11 @@ namespace Simian.Scripting.Linden
                 m_emptyArgs = new object[] { this };
             }
 
+            public void AddSleepMS(int ms)
+            {
+                System.Threading.Thread.Sleep(ms);
+            }
+
             public object CallMethod(string methodName)
             {
                 ApiMethod apiMethod;

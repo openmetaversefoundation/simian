@@ -160,6 +160,9 @@ namespace Simian.Protocols.Linden
         public Vector3 CameraLeftAxis;
         public Vector3 CameraUpAxis;
         public float DrawDistance = 128.0f;
+        public float CameraVerticalAngle = 1.04719755f; // 60 degrees
+        public uint CameraHeight = 800;
+        public uint CameraWidth = 600;
 
         public Uri SeedCapability;
         public LLEventQueue EventQueue;

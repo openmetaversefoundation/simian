@@ -35,7 +35,6 @@ namespace Simian.Scripting.Linden
 {
     public partial class LindenApi : ISceneModule, IScriptApi
     {
-       
         [ScriptMethod]
         public int llStringLength(IScriptInstance script, string str)
         {
@@ -99,7 +98,7 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public string llDeleteSubString(string src, int start, int end)
+        public string llDeleteSubString(IScriptInstance script, string src, int start, int end)
         {
             if (start < 0)
                 start = src.Length + start;
@@ -143,7 +142,7 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public string llInsertString(string dest, int index, string src)
+        public string llInsertString(IScriptInstance script, string dest, int index, string src)
         {
             if (index < 0)
             {
@@ -160,33 +159,33 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public string llStringTrim(string src, int type)
+        public string llStringTrim(IScriptInstance script, string src, int type)
         {
-            if (type == LSLScriptBase.STRING_TRIM_HEAD)
+            if (type == LSLConstants.STRING_TRIM_HEAD)
                 return src.TrimStart();
-            else if (type == LSLScriptBase.STRING_TRIM_TAIL)
+            else if (type == LSLConstants.STRING_TRIM_TAIL)
                 return src.TrimEnd();
-            else if (type == LSLScriptBase.STRING_TRIM)
+            else if (type == LSLConstants.STRING_TRIM)
                 return src.Trim();
             else
                 return src;
         }
 
         [ScriptMethod]
-        public int llSubStringIndex(string source, string pattern)
+        public int llSubStringIndex(IScriptInstance script, string source, string pattern)
         {
             return source.IndexOf(pattern);
         }
 
         [ScriptMethod]
-        public string llStringToBase64(string str)
+        public string llStringToBase64(IScriptInstance script, string str)
         {
             try { return Convert.ToBase64String(Encoding.UTF8.GetBytes(str)); }
             catch (Exception e) { throw new Exception("Error in base64Encode" + e.Message); }
         }
 
         [ScriptMethod]
-        public string llBase64ToString(string str)
+        public string llBase64ToString(IScriptInstance script, string str)
         {
             try
             {
@@ -206,11 +205,11 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public string llXorBase64StringsCorrect(string str1, string str2)
+        public string llXorBase64StringsCorrect(IScriptInstance script, string str1, string str2)
         {
             string ret = String.Empty;
-            string src1 = llBase64ToString(str1);
-            string src2 = llBase64ToString(str2);
+            string src1 = llBase64ToString(script, str1);
+            string src2 = llBase64ToString(script, str2);
             int c = 0;
 
             for (int i = 0; i < src1.Length; i++)
@@ -221,7 +220,19 @@ namespace Simian.Scripting.Linden
                     c = 0;
             }
 
-            return llStringToBase64(ret);
+            return llStringToBase64(script, ret);
+        }
+
+        [ScriptMethod]
+        public string llSHA1String(IScriptInstance script, string src)
+        {
+            return Utils.SHA1String(src);
+        }
+
+        [ScriptMethod]
+        public string llMD5String(IScriptInstance script, string src, string nonce)
+        {
+            return Utils.MD5String(src + ":" + nonce);
         }
     }
 }

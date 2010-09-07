@@ -448,44 +448,6 @@ namespace Simian.Scripting.Linden
             }
         }
 
-        public int Size
-        {
-            get
-            {
-                if (m_data == null)
-                    m_data = new Object[0];
-
-                int size = 0;
-
-                foreach (Object o in m_data)
-                {
-                    if (o is lsl_integer)
-                        size += 4;
-                    else if (o is lsl_float)
-                        size += 8;
-                    else if (o is lsl_string)
-                        size += ((lsl_string)o).m_string.Length;
-                    else if (o is lsl_key)
-                        size += ((lsl_key)o).value.Length;
-                    else if (o is lsl_vector)
-                        size += 32;
-                    else if (o is lsl_rotation)
-                        size += 64;
-                    else if (o is int)
-                        size += 4;
-                    else if (o is string)
-                        size += ((string)o).Length;
-                    else if (o is float)
-                        size += 8;
-                    else if (o is double)
-                        size += 16;
-                    else
-                        throw new Exception("Unknown type in List.Size: " + o.GetType().ToString());
-                }
-                return size;
-            }
-        }
-
         public object[] Data
         {
             get
@@ -497,13 +459,6 @@ namespace Simian.Scripting.Linden
 
             set { m_data = value; }
         }
-        // Function to obtain LSL type from an index. This is needed
-        // because LSL lists allow for multiple types, and safely
-        // iterating in them requires a type check.
-        public Type GetLSLListItemType(int itemIndex)
-        {
-            return m_data[itemIndex].GetType();
-        }
 
         // Member functions to obtain item as specific types.
         // For cases where implicit conversions would apply if items
@@ -512,83 +467,117 @@ namespace Simian.Scripting.Linden
         // down-cast from Object to the correct type.
         // Note: no checks for item index being valid are performed
 
-        public lsl_float GetLSLFloatItem(int itemIndex)
+        public float GetFloatItem(int itemIndex)
         {
-            if (m_data[itemIndex] is lsl_integer)
+            object o = m_data[itemIndex];
+
+            if (o is int)
             {
-                return (lsl_integer)m_data[itemIndex];
+                return (int)o;
             }
-            else if (m_data[itemIndex] is int)
+            else if (o is float)
             {
-                return new lsl_float((int)m_data[itemIndex]);
+                return (float)o;
             }
-            else if (m_data[itemIndex] is float)
+            else if (o is double)
             {
-                return new lsl_float((float)m_data[itemIndex]);
+                return (float)(double)o;
             }
-            else if (m_data[itemIndex] is double)
+            else if (o is string)
             {
-                return new lsl_float((Double)m_data[itemIndex]);
+                float f;
+                Single.TryParse((string)o, out f);
+                return f;
             }
-            else if (m_data[itemIndex] is lsl_string)
+            else if (o is lsl_integer)
             {
-                return new lsl_float(m_data[itemIndex].ToString());
+                return (lsl_integer)o;
+            }
+            else if (o is lsl_float)
+            {
+                return (float)(lsl_float)o;
+            }
+            else if (o is lsl_string)
+            {
+                return (float)(new lsl_float(o.ToString()));
             }
             else
             {
-                return (lsl_float)m_data[itemIndex];
+                return (float)(lsl_float)o;
             }
         }
 
-        public lsl_string GetLSLStringItem(int itemIndex)
+        public string GetStringItem(int itemIndex)
         {
-            if (m_data[itemIndex] is lsl_key)
+            object o = m_data[itemIndex];
+
+            if (o is float)
             {
-                return new lsl_string((lsl_key)m_data[itemIndex]);
+                float f = (float)o;
+                return f.ToString(OpenMetaverse.Utils.EnUsCulture.NumberFormat);
             }
-            else if (m_data[itemIndex] is String)
+            else if (o is double)
             {
-                return new lsl_string((string)m_data[itemIndex]);
-            }
-            else if (m_data[itemIndex] is lsl_float)
-            {
-                return new lsl_string((lsl_float)m_data[itemIndex]);
-            }
-            else if (m_data[itemIndex] is lsl_integer)
-            {
-                return new lsl_string((lsl_integer)m_data[itemIndex]);
+                double d = (double)o;
+                return d.ToString(OpenMetaverse.Utils.EnUsCulture.NumberFormat);
             }
             else
             {
-                return (lsl_string)m_data[itemIndex];
+                return o.ToString();
             }
         }
 
-        public lsl_integer GetLSLIntegerItem(int itemIndex)
+        public int GetIntegerItem(int itemIndex)
         {
-            if (m_data[itemIndex] is lsl_integer)
-                return (lsl_integer)m_data[itemIndex];
-            if (m_data[itemIndex] is lsl_float)
-                return new lsl_integer((int)m_data[itemIndex]);
-            else if (m_data[itemIndex] is Int32)
-                return new lsl_integer((int)m_data[itemIndex]);
-            else if (m_data[itemIndex] is lsl_string)
-                return new lsl_integer((string)m_data[itemIndex]);
+            object o = m_data[itemIndex];
+
+            if (o is int)
+            {
+                return (int)o;
+            }
+            else if (o is float)
+            {
+                return (int)(float)o;
+            }
+            else if (o is double)
+            {
+                return (int)(double)o;
+            }
+            else if (o is string)
+            {
+                int i;
+                Int32.TryParse((string)o, out i);
+                return i;
+            }
+            else if (o is lsl_integer)
+            {
+                return (lsl_integer)o;
+            }
+            if (o is lsl_float)
+            {
+                return new lsl_integer((int)o);
+            }
+            else if (o is lsl_string)
+            {
+                return new lsl_integer((string)o);
+            }
             else
+            {
                 throw new InvalidCastException();
+            }
         }
 
-        public lsl_vector GetLSLVectorItem(int itemIndex)
+        public Vector3 GetVectorItem(int itemIndex)
         {
             return (lsl_vector)m_data[itemIndex];
         }
 
-        public lsl_rotation GetLSLRotationItem(int itemIndex)
+        public Quaternion GetRotationItem(int itemIndex)
         {
             return (lsl_rotation)m_data[itemIndex];
         }
 
-        public lsl_key GetKeyItem(int itemIndex)
+        public string GetKeyItem(int itemIndex)
         {
             return (lsl_key)m_data[itemIndex];
         }
@@ -606,6 +595,24 @@ namespace Simian.Scripting.Linden
         {
             Array.Resize(ref m_data, Length + 1);
             m_data.SetValue(o, Length - 1);
+        }
+
+        public static lsl_list operator +(lsl_list a, string s)
+        {
+            a.ExtendAndAdd(s);
+            return a;
+        }
+
+        public static lsl_list operator +(lsl_list a, int i)
+        {
+            a.ExtendAndAdd(i);
+            return a;
+        }
+
+        public static lsl_list operator +(lsl_list a, float d)
+        {
+            a.ExtendAndAdd(d);
+            return a;
         }
 
         public static lsl_list operator +(lsl_list a, lsl_string s)
@@ -737,7 +744,6 @@ namespace Simian.Scripting.Linden
 
         public lsl_list GetSublist(int start, int end)
         {
-
             object[] ret;
 
             // Take care of neg start or end's
@@ -792,12 +798,9 @@ namespace Simian.Scripting.Linden
                 return new lsl_list(ret);
 
             }
-
-            // Deal with the segmented case: 0->end + start->EOL
-
             else
             {
-
+                // Deal with the segmented case: 0->end + start->EOL
                 lsl_list result = null;
 
                 // If end is negative, then prefix list is empty
@@ -811,7 +814,6 @@ namespace Simian.Scripting.Linden
                     {
                         return this;
                     }
-
                 }
                 else
                 {
@@ -832,17 +834,47 @@ namespace Simian.Scripting.Linden
 
         private static int compare(object left, object right, int ascending)
         {
+            // unequal types are always "equal" for comparison purposes.
+            // this way, the bubble sort will never swap them, and we'll
+            // get that feathered effect we're looking for
             if (!left.GetType().Equals(right.GetType()))
             {
-                // unequal types are always "equal" for comparison purposes.
-                // this way, the bubble sort will never swap them, and we'll
-                // get that feathered effect we're looking for
                 return 0;
             }
 
             int ret = 0;
 
-            if (left is lsl_key)
+            if (left is string)
+            {
+                string l = (string)left;
+                string r = (string)right;
+                ret = String.CompareOrdinal(l, r);
+            }
+            else if (left is int)
+            {
+                int l = (int)left;
+                int r = (int)right;
+                ret = Math.Sign(l - r);
+            }
+            else if (left is float)
+            {
+                float l = (float)left;
+                float r = (float)right;
+                ret = Math.Sign(l - r);
+            }
+            else if (left is Vector3)
+            {
+                Vector3 l = (Vector3)left;
+                Vector3 r = (Vector3)right;
+                ret = Math.Sign(l.LengthSquared() - r.LengthSquared());
+            }
+            else if (left is Quaternion)
+            {
+                Quaternion l = (Quaternion)left;
+                Quaternion r = (Quaternion)right;
+                ret = Math.Sign(l.LengthSquared() - r.LengthSquared());
+            }
+            else if (left is lsl_key)
             {
                 lsl_key l = (lsl_key)left;
                 lsl_key r = (lsl_key)right;
@@ -880,9 +912,7 @@ namespace Simian.Scripting.Linden
             }
 
             if (ascending == 0)
-            {
-                ret = 0 - ret;
-            }
+                ret = -ret;
 
             return ret;
         }
@@ -979,10 +1009,10 @@ namespace Simian.Scripting.Linden
 
         public string ToCSV()
         {
-            string ret = "";
+            string ret = String.Empty;
             foreach (object o in this.Data)
             {
-                if (ret == "")
+                if (ret == String.Empty)
                 {
                     ret = o.ToString();
                 }
@@ -1009,7 +1039,7 @@ namespace Simian.Scripting.Linden
             return output;
         }
 
-        public static explicit operator String(lsl_list l)
+        public static explicit operator string(lsl_list l)
         {
             return l.ToSoup();
         }

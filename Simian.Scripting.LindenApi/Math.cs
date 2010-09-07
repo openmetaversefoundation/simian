@@ -147,37 +147,37 @@ namespace Simian.Scripting.Linden
         [ScriptMethod]
         public Vector3 llRot2Euler(IScriptInstance script, Quaternion rot)
         {
-            lsl_rotation quat = rot;
+            Quaternion quat = rot;
 
             // This implementation is from http://lslwiki.net/lslwiki/wakka.php?wakka=LibraryRotationFunctions
-            lsl_rotation t = new lsl_rotation(quat.x * quat.x, quat.y * quat.y, quat.z * quat.z, quat.s * quat.s);
+            Quaternion t = new Quaternion(quat.X * quat.X, quat.Y * quat.Y, quat.Z * quat.Z, quat.W * quat.W);
             
-            double m = (t.x + t.y + t.z + t.s);
-            if (m == 0.0) return lsl_vector.Zero;
+            double m = (t.X + t.Y + t.Z + t.W);
+            if (m == 0.0) return Vector3.Zero;
 
-            double n = 2 * (quat.y * quat.s + quat.x * quat.z);
+            double n = 2.0 * (quat.Y * quat.W + quat.X * quat.Z);
             double p = m * m - n * n;
 
             if (p > 0.0)
             {
-                return new lsl_vector(
-                    NormalizeAngle(Math.Atan2(2.0 * (quat.x * quat.s - quat.y * quat.z), (-t.x - t.y + t.z + t.s))),
-                    NormalizeAngle(Math.Atan2(n, Math.Sqrt(p))),
-                    NormalizeAngle(Math.Atan2(2.0 * (quat.z * quat.s - quat.x * quat.y), (t.x - t.y - t.z + t.s))));
+                return new Vector3(
+                    (float)NormalizeAngle(Math.Atan2(2.0 * (quat.X * quat.W - quat.Y * quat.Z), (-t.X - t.Y + t.Z + t.W))),
+                    (float)NormalizeAngle(Math.Atan2(n, Math.Sqrt(p))),
+                    (float)NormalizeAngle(Math.Atan2(2.0 * (quat.Z * quat.W - quat.X * quat.Y), (t.X - t.Y - t.Z + t.W))));
             }
             else if (n > 0.0)
             {
-                return new lsl_vector(
-                    0.0,
-                    Math.PI * 0.5,
-                    NormalizeAngle(Math.Atan2((quat.z * quat.s + quat.x * quat.y), 0.5 - t.x - t.z)));
+                return new Vector3(
+                    0.0f,
+                    (float)(Math.PI * 0.5),
+                    (float)NormalizeAngle(Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
             }
             else
             {
-                return new lsl_vector(
-                    0.0,
-                    -Math.PI * 0.5,
-                    NormalizeAngle(Math.Atan2((quat.z * quat.s + quat.x * quat.y), 0.5 - t.x - t.z)));
+                return new Vector3(
+                    0.0f,
+                    (float)(-Math.PI * 0.5),
+                    (float)NormalizeAngle(Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
             }
         }
 
@@ -196,11 +196,11 @@ namespace Simian.Scripting.Linden
             if (tr >= 1.0)
             {
                 s = 0.5 / Math.Sqrt(tr);
-                return new lsl_rotation(
-                    (left.Z - up.Y) * s,
-                    (up.X - fwd.Z) * s,
-                    (fwd.Y - left.X) * s,
-                    0.25 / s);
+                return new Quaternion(
+                    (float)((left.Z - up.Y) * s),
+                    (float)((up.X - fwd.Z) * s),
+                    (float)((fwd.Y - left.X) * s),
+                    (float)(0.25 / s));
             }
             else
             {
@@ -211,33 +211,33 @@ namespace Simian.Scripting.Linden
                     s = Math.Sqrt(fwd.X - (left.Y + up.Z) + 1.0);
                     double x = s * 0.5;
                     s = 0.5 / s;
-                    return new lsl_rotation(
-                        x,
-                        (fwd.Y + left.X) * s,
-                        (up.X + fwd.Z) * s,
-                        (left.Z - up.Y) * s);
+                    return new Quaternion(
+                        (float)x,
+                        (float)((fwd.Y + left.X) * s),
+                        (float)((up.X + fwd.Z) * s),
+                        (float)((left.Z - up.Y) * s));
                 }
                 else if (max == left.Y)
                 {
                     s = Math.Sqrt(left.Y - (up.Z + fwd.X) + 1.0);
                     double y = s * 0.5;
                     s = 0.5 / s;
-                    return new lsl_rotation(
-                        (fwd.Y + left.X) * s,
-                        y,
-                        (left.Z + up.Y) * s,
-                        (up.X - fwd.Z) * s);
+                    return new Quaternion(
+                        (float)((fwd.Y + left.X) * s),
+                        (float)y,
+                        (float)((left.Z + up.Y) * s),
+                        (float)((up.X - fwd.Z) * s));
                 }
                 else
                 {
                     s = Math.Sqrt(up.Z - (fwd.X + left.Y) + 1.0);
                     double z = s * 0.5;
                     s = 0.5 / s;
-                    return new lsl_rotation(
-                        (up.X + fwd.Z) * s,
-                        (left.Z + up.Y) * s,
-                        z,
-                        (fwd.Y - left.X) * s);
+                    return new Quaternion(
+                        (float)((up.X + fwd.Z) * s),
+                        (float)((left.Z + up.Y) * s),
+                        (float)z,
+                        (float)((fwd.Y - left.X) * s));
                 }
             }
         }
@@ -263,25 +263,25 @@ namespace Simian.Scripting.Linden
         [ScriptMethod]
         public Quaternion llRotBetween(IScriptInstance script, Vector3 start, Vector3 end)
         {
-            start = lsl_vector.Norm(start);
-            end = lsl_vector.Norm(end);
+            start = Vector3.Normalize(start);
+            end = Vector3.Normalize(end);
 
-            double dotProduct = lsl_vector.Dot(start, end);
-            lsl_vector crossProduct = lsl_vector.Cross(start, end);
-            double magProduct = lsl_vector.Mag(start) * lsl_vector.Mag(end);
+            double dotProduct = Vector3.Dot(start, end);
+            Vector3 crossProduct = Vector3.Cross(start, end);
+            double magProduct = Vector3.Mag(start) * Vector3.Mag(end);
             double angle = Math.Acos(dotProduct / magProduct);
-            lsl_vector axis = lsl_vector.Norm(crossProduct);
-            double s = Math.Sin(angle / 2);
+            Vector3 axis = Vector3.Normalize(crossProduct);
+            float s = (float)Math.Sin(angle / 2.0);
 
-            double x = axis.x * s;
-            double y = axis.y * s;
-            double z = axis.z * s;
-            double w = Math.Cos(angle / 2);
+            float x = axis.X * s;
+            float y = axis.Y * s;
+            float z = axis.Z * s;
+            float w = (float)Math.Cos(angle / 2.0);
 
-            if (Double.IsNaN(x) || Double.IsNaN(y) || Double.IsNaN(z) || Double.IsNaN(w))
+            if (Single.IsNaN(x) || Single.IsNaN(y) || Single.IsNaN(z) || Single.IsNaN(w))
                 return Quaternion.Identity;
 
-            return new lsl_rotation(x, y, z, w);
+            return new Quaternion(x, y, z, w);
         }
 
         #region Helpers

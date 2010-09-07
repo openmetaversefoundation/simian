@@ -61,6 +61,8 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.AddPacketHandler(PacketType.LogoutRequest, LogoutRequestHandler);
                 m_udp.AddPacketHandler(PacketType.AgentThrottle, AgentThrottleHandler);
                 m_udp.AddPacketHandler(PacketType.RegionHandshakeReply, RegionHandshakeReplyHandler);
+                m_udp.AddPacketHandler(PacketType.AgentFOV, AgentFOVHandler);
+                m_udp.AddPacketHandler(PacketType.AgentHeightWidth, AgentHeightWidthHandler);
             }
         }
 
@@ -73,6 +75,8 @@ namespace Simian.Protocols.Linden.Packets
                 m_udp.RemovePacketHandler(PacketType.LogoutRequest, LogoutRequestHandler);
                 m_udp.RemovePacketHandler(PacketType.AgentThrottle, AgentThrottleHandler);
                 m_udp.RemovePacketHandler(PacketType.RegionHandshakeReply, RegionHandshakeReplyHandler);
+                m_udp.RemovePacketHandler(PacketType.AgentFOV, AgentFOVHandler);
+                m_udp.RemovePacketHandler(PacketType.AgentHeightWidth, AgentHeightWidthHandler);
             }
         }
 
@@ -131,6 +135,19 @@ namespace Simian.Protocols.Linden.Packets
             //TODO: populate economy.*
 
             m_udp.SendPacket(agent, economy, ThrottleCategory.Task, false);
+        }
+
+        private void AgentFOVHandler(Packet packet, LLAgent agent)
+        {
+            AgentFOVPacket fov = (AgentFOVPacket)packet;
+            agent.CameraVerticalAngle = fov.FOVBlock.VerticalAngle;
+        }
+
+        private void AgentHeightWidthHandler(Packet packet, LLAgent agent)
+        {
+            AgentHeightWidthPacket hw = (AgentHeightWidthPacket)packet;
+            agent.CameraHeight = hw.HeightWidthBlock.Height;
+            agent.CameraWidth = hw.HeightWidthBlock.Width;
         }
     }
 }

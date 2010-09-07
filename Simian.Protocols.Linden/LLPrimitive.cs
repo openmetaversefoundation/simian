@@ -136,7 +136,6 @@ namespace Simian.Protocols.Linden
         private CircularQueue<Primitive> m_undoSteps = new CircularQueue<Primitive>(UNDO_STEPS);
         private CircularQueue<Primitive> m_redoSteps = new CircularQueue<Primitive>(UNDO_STEPS);
         private DateTime m_lastUpdated;
-        private volatile uint m_crc;
 
         private Vector3 m_lastPosition;
         private Quaternion m_lastRotation = Quaternion.Identity;
@@ -272,12 +271,7 @@ namespace Simian.Protocols.Linden
 
         public void MarkAsModified()
         {
-            lock (m_syncRoot)
-            {
-                // Reset the CRC and update the time this entity was last modified
-                m_crc = 0;
-                m_lastUpdated = DateTime.UtcNow;
-            }
+            m_lastUpdated = DateTime.UtcNow;
         }
 
         #endregion ISceneEntity Properties
@@ -792,7 +786,6 @@ namespace Simian.Protocols.Linden
             map["media_version"] = OSD.FromString(Prim.MediaVersion);
 
             map["last_updated"] = OSD.FromDate(m_lastUpdated);
-            map["crc"] = OSD.FromInteger(m_crc);
 
             return map;
         }
@@ -946,8 +939,6 @@ namespace Simian.Protocols.Linden
             obj.Prim.MediaVersion = map["media_version"].AsString();
 
             obj.m_lastUpdated = map["last_updated"].AsDate();
-            obj.m_crc = map["crc"].AsUInteger();
-
             if (obj.m_lastUpdated <= Utils.Epoch)
                 obj.m_lastUpdated = DateTime.UtcNow;
 
@@ -1042,20 +1033,7 @@ namespace Simian.Protocols.Linden
 
         public uint GetCrc()
         {
-            // Double-checked locking is ok here since m_crc is marked volatile
-            if (m_crc == 0)
-            {
-                lock (m_syncRoot)
-                {
-                    if (m_crc == 0)
-                    {
-                        ObjectUpdateCompressedPacket.ObjectDataBlock block = Packets.Objects.CreateCompressedObjectUpdateBlock(this, 0);
-                        m_crc = Util.Crc32(block.Data, 0, block.Data.Length);
-                    }
-                }
-            }
-
-            return m_crc;
+            return Utils.DateTimeToUnixTime(m_lastUpdated);
         }
 
         public int GetNumberOfSides()

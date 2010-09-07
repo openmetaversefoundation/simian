@@ -28,57 +28,57 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using log4net;
+using System.Threading;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 using Simian.Protocols.Linden;
 
 namespace Simian.Scripting.Linden
 {
-    /// <summary>
-    /// Contains all of the functions exposed through the LSL API
-    /// </summary>
-    /// <remarks>This partial class is spread out over several source files</remarks>
-    [SceneModule("LindenApi")]
     public partial class LindenApi : ISceneModule, IScriptApi
     {
-        private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+        //[ScriptMethod]
+        //public int llGetPermissions(IScriptInstance script)
+        //{
+        //    if (script is LSLScriptInstance)
+        //    {
+        //        LSLScriptInstance lsl = (LSLScriptInstance)script;
+        //        return (int)lsl.Permissions;
+        //    }
 
-        private IAssetClient m_assetClient;
-        private ITerrain m_terrain;
-        private IPrimMesher m_primMesher;
-        private ILSLScriptEngine m_lslScriptEngine;
+        //    return 0; // TODO: Warning message
+        //}
 
-        public void Start(IScene scene)
-        {
-            m_assetClient = scene.Simian.GetAppModule<IAssetClient>();
-            m_terrain = scene.GetSceneModule<ITerrain>();
-            m_primMesher = scene.GetSceneModule<IPrimMesher>();
-            m_lslScriptEngine = scene.GetSceneModule<ILSLScriptEngine>();
+        //[ScriptMethod]
+        //public UUID llGetPermissionsKey(IScriptInstance script)
+        //{
+        //    if (script is LSLScriptInstance)
+        //    {
+        //        LSLScriptInstance lsl = (LSLScriptInstance)script;
+        //        return lsl.PermissionsKey;
+        //    }
 
-            int implemented = CountMethods();
-            m_log.Debug("Initializing LSL API with " + implemented + "/" + m_methods.Count + " implemented methods");
-        }
+        //    return UUID.Zero; // TODO: Warning message
+        //}
 
-        public void Stop()
-        {
-        }
+        //[ScriptMethod]
+        //public void llRequestPermissions(IScriptInstance script, UUID agentID, int perms)
+        //{
+        //    if (script is LSLScriptInstance)
+        //    {
+        //        LSLScriptInstance lsl = (LSLScriptInstance)script;
 
-        [ScriptMethod]
-        public void state(IScriptInstance script, string newState)
-        {
-            m_lslScriptEngine.TriggerState(script.ID, newState);
-        }
+        //        if (agentID != lsl.PermissionsKey)
+        //            lsl.Permissions = ScriptPermission.None;
 
-        [ScriptMethod]
-        public void llSleep(IScriptInstance script, double sec)
-        {
-            // Convert seconds to milliseconds and sleep
-            ScriptSleep((int)(sec * 0.001));
-        }
+        //        // TODO: Send script permission dialog to the user
+        //        //script.Host.Scene.RequestScriptPermissions(this, script.Host, agentID, perms);
 
-        private void ScriptSleep(int ms)
-        {
-            System.Threading.Thread.Sleep(ms);
-        }
+        //        // HACK: Automatically grant permissions and fire event, since we don't have a permission dialog yet
+        //        lsl.PermissionsKey = agentID;
+        //        lsl.Permissions = (ScriptPermission)perms;
+        //        m_lslScriptEngine.PostObjectEvent(script.Host.ID, "run_time_permissions", new object[] { perms }, new DetectParams[0]);
+        //    }
+        //}
     }
 }

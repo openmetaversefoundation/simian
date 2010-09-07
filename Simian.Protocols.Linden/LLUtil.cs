@@ -474,6 +474,8 @@ namespace Simian.Protocols.Linden
             return sitTarget + new Vector3(0f, 0f, 0.4f - (agentScale.Z * 0.02638f));
         }
 
+        #region PrimObject Conversion
+
         public static LLPrimitive PrimObjectToLLPrim(PrimObject obj, IScene scene, IPrimMesher mesher)
         {
             Primitive prim = new Primitive();
@@ -682,5 +684,7 @@ namespace Simian.Protocols.Linden
             inv.InventorySerial = (short)objInv.Serial;
             return inv;
         }
+
+        #endregion PrimObject Conversion
     }
 }

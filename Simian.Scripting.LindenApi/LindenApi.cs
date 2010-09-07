@@ -28,33 +28,47 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using log4net;
 using OpenMetaverse;
+using Simian.Protocols.Linden;
+using Simian.Protocols.Linden.Packets;
 
 namespace Simian.Scripting.Linden
 {
+    /// <summary>
+    /// Contains all of the functions exposed through the LSL API
+    /// </summary>
+    /// <remarks>This partial class is spread out over several source files</remarks>
+    [SceneModule("LindenApi")]
     public partial class LindenApi : ISceneModule, IScriptApi
     {
-        [ScriptMethod]
-        public string llBase64ToString(IScriptInstance script, string str)
+        private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+
+        private IAssetClient m_assetClient;
+        private ITerrain m_terrain;
+        private IPrimMesher m_primMesher;
+        private ILSLScriptEngine m_lslScriptEngine;
+        private Messaging m_messaging;
+
+        public void Start(IScene scene)
         {
-            System.Text.UTF8Encoding encoder = new System.Text.UTF8Encoding();
-            System.Text.Decoder utf8Decode = encoder.GetDecoder();
-            string result = String.Empty;
+            m_assetClient = scene.Simian.GetAppModule<IAssetClient>();
+            m_terrain = scene.GetSceneModule<ITerrain>();
+            m_primMesher = scene.GetSceneModule<IPrimMesher>();
+            m_lslScriptEngine = scene.GetSceneModule<ILSLScriptEngine>();
+            m_messaging = scene.GetSceneModule<Messaging>();
 
-            try
-            {
-                byte[] todecode_byte = Convert.FromBase64String(str);
-                int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);
-                char[] decoded_char = new char[charCount];
-                utf8Decode.GetChars(todecode_byte, 0, todecode_byte.Length, decoded_char, 0);
-                result = new String(decoded_char);
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Error in base64Decode" + e.Message);
-            }
-
-            return result;
+            int implemented = CountMethods();
+            m_log.Debug("Initializing LSL API with " + implemented + "/" + m_methods.Count + " implemented methods");
         }
+
+        public void Stop()
+        {
+        }
+
+        //private void ScriptSleep(int ms)
+        //{
+        //    System.Threading.Thread.Sleep(ms);
+        //}
     }
 }

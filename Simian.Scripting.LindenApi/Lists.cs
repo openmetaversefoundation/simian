@@ -35,176 +35,133 @@ namespace Simian.Scripting.Linden
 {
     public partial class LindenApi : ISceneModule, IScriptApi
     {
+        //[ScriptMethod]
+        //public List<object> llDeleteSubList(IScriptInstance script, List<object> list, int start, int end)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public List<object> llGetSubList(IScriptInstance script, List<object> src, int start, int end)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public List<object> llCSV2List(IScriptInstance script, string csv)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public string llDumpList2String(IScriptInstance script, List<object> src, string separator)
+        //{
+        //}
+
         [ScriptMethod]
-        public lsl_list llDeleteSubList(IScriptInstance script, lsl_list list, int start, int end)
+        public int llGetListLength(IScriptInstance script, List<object> src)
         {
-            return list.DeleteSublist(start, end);
+            return src.Count;
         }
 
-        [ScriptMethod]
-        public lsl_list llGetSubList(IScriptInstance script, lsl_list src, int start, int end)
-        {
-            return src.GetSublist(start, end);
-        }
+        //[ScriptMethod]
+        //public string llList2CSV(IScriptInstance script, List<object> list)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public float llList2Float(IScriptInstance script, List<object> list, int index)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public int llList2Integer(IScriptInstance script, List<object> list, int index)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public string llList2Key(IScriptInstance script, List<object> list, int index)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public List<object> llList2List(IScriptInstance script, List<object> list, int start, int end)
+        //{
+        //}
 
         [ScriptMethod]
-        public lsl_list llCSV2List(IScriptInstance script, string csv)
+        public List<object> llListRandomize(IScriptInstance script, List<object> src)
         {
-            return lsl_list.FromCSV(csv);
-        }
+            object[] objects = new object[src.Count];
 
-        [ScriptMethod]
-        public string llDumpList2String(IScriptInstance script, lsl_list src, string separator)
-        {
-            int len = src.Length;
-
-            string[] arr = new string[len];
-
-            for (int i = 0; i < len; i++)
-                arr[i] = src.Data[i].ToString();
-
-            return String.Join(separator, arr);
-        }
-
-        [ScriptMethod]
-        public int llGetListLength(IScriptInstance script, lsl_list src)
-        {
-            return src.Length;
-        }
-
-        [ScriptMethod]
-        public string llList2CSV(IScriptInstance script, lsl_list list)
-        {
-            return list.ToCSV();
-        }
-
-        [ScriptMethod]
-        public float llList2Float(IScriptInstance script, lsl_list list, int index)
-        {
-            float ret;
-            if (Single.TryParse(list.Data[index].ToString(), out ret))
-                return ret;
-            else
-                return 0f;
-        }
-
-        [ScriptMethod]
-        public int llList2Integer(IScriptInstance script, lsl_list list, int index)
-        {
-            int ret;
-            if (Int32.TryParse(list.Data[index].ToString(), out ret))
-                return ret;
-            else
-                return 0;
-        }
-
-        [ScriptMethod]
-        public string llList2Key(IScriptInstance script, lsl_list list, int index)
-        {
-            return list.Data[index].ToString();
-        }
-
-        [ScriptMethod]
-        public lsl_list llList2List(IScriptInstance script, lsl_list list, int start, int end)
-        {
-            return list.GetSublist(start, end);
-        }
-
-        [ScriptMethod]
-        public lsl_list llListRandomize(IScriptInstance script, lsl_list src)
-        {
-            List<object> items = new List<object>(src.Data);
-            object[] objects = new object[src.Data.Length];
-
-            for (int i=0; items.Count > 0; i++)
+            for (int i = 0; src.Count > 0; i++)
             {
-                int randomIndex = new Random().Next(items.Count);
-                objects[i] = items[randomIndex];
-                items.RemoveAt(randomIndex);
+                int randomIndex = new Random().Next(src.Count);
+                objects[i] = src[randomIndex];
+                src.RemoveAt(randomIndex);
             }
 
-            return new lsl_list(objects);
+            return new List<object>(objects);
         }
 
-        [ScriptMethod]
-        public string llList2String(IScriptInstance script, lsl_list src, int index)
-        {
-            return src.Data[index].ToString();
-        }
+        //[ScriptMethod]
+        //public string llList2String(IScriptInstance script, List<object> src, int index)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public Vector3 llList2Vector(IScriptInstance script, List<object> src, int index)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public List<object> llListSort(IScriptInstance script, List<object> src, int stride, int ascending)
+        //{
+        //}
+
+        //[ScriptMethod]
+        //public double llListStatistics(IScriptInstance script, int operation, List<object> src)
+        //{
+        //    switch (operation)
+        //    {
+        //        case LSLConstants.LIST_STAT_GEOMETRIC_MEAN:
+        //            ;
+        //        case LSLConstants.LIST_STAT_HARMONIC_MEAN:
+        //            ;
+        //        case LSLConstants.LIST_STAT_MAX:
+        //            ;
+        //        case LSLConstants.LIST_STAT_MEAN:
+        //            ;
+        //        case LSLConstants.LIST_STAT_MEDIAN:
+        //            ;
+        //        case LSLConstants.LIST_STAT_MIN:
+        //            ;
+        //        case LSLConstants.LIST_STAT_NUM_COUNT:
+        //            ;
+        //        case LSLConstants.LIST_STAT_RANGE:
+        //            ;
+        //        case LSLConstants.LIST_STAT_STD_DEV:
+        //            ;
+        //        case LSLConstants.LIST_STAT_SUM:
+        //            ;
+        //        case LSLConstants.LIST_STAT_SUM_SQUARES:
+        //            ;
+        //        default:
+        //            return 0f;
+        //    }
+        //}
 
         [ScriptMethod]
-        public Vector3 llList2Vector(IScriptInstance script, lsl_list src, int index)
+        public List<object> llParseString2List(IScriptInstance script, string str, List<object> separators, List<object> in_spacers)
         {
-            Vector3 ret;
-            if (Vector3.TryParse(src.Data[index].ToString(), out ret))
-                return ret;
-            else
-                return Vector3.Zero;
-        }
+            List<object> ret = new List<object>();
+            List<object> spacers = new List<object>();
 
-        [ScriptMethod]
-        public lsl_list llListSort(IScriptInstance script, lsl_list src, int stride, int ascending)
-        {
-            return src.Sort(stride, ascending);
-        }
-
-        [ScriptMethod]
-        public double llListStatistics(IScriptInstance script, int operation, lsl_list src)
-        {
-            switch (operation)
+            if (in_spacers.Count > 0 && separators.Count > 0)
             {
-                case LSLScriptBase.LIST_STAT_GEOMETRIC_MEAN:
-                    return src.GeometricMean();
-
-                case LSLScriptBase.LIST_STAT_HARMONIC_MEAN:
-                    return src.HarmonicMean();
-
-                case LSLScriptBase.LIST_STAT_MAX:
-                    return src.Max();
-
-                case LSLScriptBase.LIST_STAT_MEAN:
-                    return src.Mean();
-
-                case LSLScriptBase.LIST_STAT_MEDIAN:
-                    return src.Median();
-
-                case LSLScriptBase.LIST_STAT_MIN:
-                    return src.Min();
-
-                case LSLScriptBase.LIST_STAT_NUM_COUNT:
-                    return src.NumericLength();
-
-                case LSLScriptBase.LIST_STAT_RANGE:
-                    return src.Range();
-
-                case LSLScriptBase.LIST_STAT_STD_DEV:
-                    return src.StdDev();
-
-                case LSLScriptBase.LIST_STAT_SUM:
-                    return src.Sum();
-
-                case LSLScriptBase.LIST_STAT_SUM_SQUARES:
-                    return src.SumSqrs();
-
-                default:
-                    return 0f;
-            }
-        }
-
-        [ScriptMethod]
-        public lsl_list llParseString2List(string str, lsl_list separators, lsl_list in_spacers)
-        {
-            lsl_list ret = new lsl_list();
-            lsl_list spacers = new lsl_list();
-
-            if (in_spacers.Length > 0 && separators.Length > 0)
-            {
-                for (int i = 0; i < in_spacers.Length; i++)
+                for (int i = 0; i < in_spacers.Count; i++)
                 {
-                    object s = in_spacers.Data[i];
-                    for (int j = 0; j < separators.Length; j++)
+                    object s = in_spacers[i];
+                    for (int j = 0; j < separators.Count; j++)
                     {
-                        if (separators.Data[j].ToString() == s.ToString())
+                        if (separators[j].ToString() == s.ToString())
                         {
                             s = null;
                             break;
@@ -216,9 +173,9 @@ namespace Simian.Scripting.Linden
                 }
             }
 
-            object[] delimiters = new object[separators.Length + spacers.Length];
-            separators.Data.CopyTo(delimiters, 0);
-            spacers.Data.CopyTo(delimiters, separators.Length);
+            object[] delimiters = new object[separators.Count + spacers.Count];
+            separators.ToArray().CopyTo(delimiters, 0);
+            spacers.ToArray().CopyTo(delimiters, separators.Count);
 
             bool dfound;
             do
@@ -245,9 +202,9 @@ namespace Simian.Scripting.Linden
                     if (cindex > 0)
                         ret.Add(str.Substring(0, cindex));
 
-                    for (int j = 0; j < spacers.Length; j++)
+                    for (int j = 0; j < spacers.Count; j++)
                     {
-                        if (spacers.Data[j].ToString() == cdeli)
+                        if (spacers[j].ToString() == cdeli)
                         {
                             ret.Add(cdeli);
                             break;
@@ -265,14 +222,14 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public lsl_list llParseStringKeepNulls(string src, lsl_list separators, lsl_list spacers)
+        public List<object> llParseStringKeepNulls(IScriptInstance script, string src, List<object> separators, List<object> spacers)
         {
             int beginning = 0;
             int srclen = src.Length;
-            int seplen = separators.Length;
-            object[] separray = separators.Data;
-            int spclen = spacers.Length;
-            object[] spcarray = spacers.Data;
+            int seplen = separators.Count;
+            object[] separray = separators.ToArray();
+            int spclen = spacers.Count;
+            object[] spcarray = spacers.ToArray();
             int mlen = seplen + spclen;
 
             int[] offset = new int[mlen + 1];
@@ -281,7 +238,7 @@ namespace Simian.Scripting.Linden
             int best;
             int j;
 
-            lsl_list tokens = new lsl_list();
+            List<object> tokens = new List<object>();
 
             // All entries are initially valid
             for (int i = 0; i < mlen; i++)

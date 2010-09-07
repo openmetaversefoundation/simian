@@ -159,7 +159,7 @@
     
     <!-- Scripting -->
     
-    <Project name="Simian.Scripting.Linden" path="Simian.Scripting.LindenApi" type="Library" rootNamespace="Simian.Scripting.Linden" frameworkVersion="v3_5">
+    <Project name="Simian.Scripting.LindenApi" path="Simian.Scripting.LindenApi" type="Library" rootNamespace="Simian.Scripting.Linden" frameworkVersion="v3_5">
       <Configuration name="Debug">
         <Options>
           <OutputPath>../bin/Debug/</OutputPath>
@@ -168,7 +168,37 @@
       <Configuration name="Release">
         <Options>
           <OutputPath>../bin/Release/</OutputPath>
-          <XmlDocFile>Simian.Scripting.Linden.xml</XmlDocFile>
+          <XmlDocFile>Simian.Scripting.LindenApi.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    <Project name="Simian.Scripting.XEngine" path="Simian.Scripting.XEngine" type="Library" rootNamespace="Simian.Scripting.XEngine" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Scripting.XEngine.xml</XmlDocFile>
         </Options>
       </Configuration>
 
@@ -187,6 +217,7 @@
       <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
       <Reference name="Simian"/>
       <Reference name="Simian.Protocols.Linden"/>
+      <Reference name="Simian.Scripting.LindenApi"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -427,7 +458,6 @@
       <Reference name="OpenMetaverse.StructuredData" path="../lib/" localCopy="true"/>
       <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
       <Reference name="Simian"/>
-      <Reference name="Simian.Scripting.Linden"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>

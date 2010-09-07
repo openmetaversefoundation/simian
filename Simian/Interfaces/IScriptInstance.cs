@@ -35,5 +35,7 @@ namespace Simian
         UUID ID { get; }
         UUID SourceAssetID { get; }
         ISceneEntity Host { get; }
+
+        void AddSleepMS(int ms);
     }
 }

@@ -134,9 +134,19 @@ namespace Simian.Protocols.Linden.Packets
         {
             CreateInventoryItemPacket create = (CreateInventoryItemPacket)packet;
 
+            AssetType type = (AssetType)create.InventoryBlock.Type;
+
             UUID assetID = create.InventoryBlock.TransactionID;
             if (assetID != UUID.Zero)
                 assetID = UUID.Combine(assetID, agent.SecureSessionID);
+
+            if (assetID == UUID.Zero)
+            {
+                if (type == AssetType.LSLText)
+                    assetID = TaskInventory.DEFAULT_SCRIPT;
+                else
+                    m_log.Warn("Creating a " + type + " inventory item with a null AssetID");
+            }
 
             Permissions itemPerms = GetDefaultPermissions();
             itemPerms.NextOwnerMask = (PermissionMask)create.InventoryBlock.NextOwnerMask;
@@ -144,7 +154,7 @@ namespace Simian.Protocols.Linden.Packets
             // Create the inventory item
             LLInventoryItem item = new LLInventoryItem();
             item.AssetID = assetID;
-            item.ContentType = LLUtil.LLAssetTypeToContentType(create.InventoryBlock.Type);
+            item.ContentType = LLUtil.LLAssetTypeToContentType((int)type);
             item.CreationDate = DateTime.UtcNow;
             item.CreatorID = agent.ID;
             item.Description = String.Empty;

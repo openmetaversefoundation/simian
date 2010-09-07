@@ -103,6 +103,26 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
+        public void llInstantMessage(IScriptInstance script, string user, string message)
+        {
+            if (m_messaging != null)
+            {
+                UUID toID;
+                UUID.TryParse(user, out toID);
+
+                // Keep a persistent messageID for all IMs from the host object to the target agent
+                UUID messageID = UUID.Combine(script.Host.ID, toID);
+
+                m_messaging.SendInstantMessage(messageID, toID, script.Host.Name, 
+                    script.Host.ScenePosition, script.Host.Scene.ID, false, 
+                    InstantMessageDialog.MessageFromObject, message, false, DateTime.UtcNow,
+                    Utils.EmptyBytes);
+            }
+
+            script.AddSleepMS(2000);
+        }
+
+        [ScriptMethod]
         public void llRegionSay(IScriptInstance script, int channelID, string text)
         {
             // Cannot use llRegionSay on PUBLIC_CHANNEL: http://wiki.secondlife.com/wiki/LlRegionSay

@@ -40,9 +40,10 @@ namespace Simian.Protocols.Linden.Packets
     [SceneModule("TaskInventory")]
     public class TaskInventory : ISceneModule
     {
+        public static readonly UUID DEFAULT_SCRIPT = new UUID("a7f70b8e-b2ee-46bb-85c0-5d973137cd47");
+
         private const int REQUEST_TIMEOUT = 1000 * 30;
 
-        private static readonly UUID DEFAULT_SCRIPT = new UUID("a7f70b8e-b2ee-46bb-85c0-5d973137cd47");
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IScene m_scene;

@@ -42,7 +42,7 @@ using Simian.Protocols.Linden;
 namespace Simian.Scripting.Linden
 {
     [SceneModule("XEngine")]
-    public class XEngine : ISceneModule, ILSLScriptEngine
+    public partial class XEngine : ISceneModule, ILSLScriptEngine
     {
         #region Helper Classes
 
