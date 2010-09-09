@@ -156,6 +156,32 @@ namespace Simian
             }
         }
 
+        private static void CreateUserConsole()
+        {
+            string input;
+            string promptName = "First name: ";
+            // Last name:
+            // E-mail:
+            // Password:
+
+            Mono.Terminal.LineEditor console = new Mono.Terminal.LineEditor("Simian");
+
+            // FIXME: Finish implementing this to force a grid admin to be created on startup.
+            // This will resolve the bootstrapping issues with estate/parcel ownership
+            while (m_running && (input = console.Edit(promptName, String.Empty)) != null)
+            {
+                string[] inputWords = input.Split(' ');
+                if (inputWords.Length > 0)
+                {
+                    string command = inputWords[0];
+                    string[] args = new string[inputWords.Length - 1];
+
+                    for (int i = 0; i < args.Length; i++)
+                        args[i] = inputWords[i + 1];
+                }
+            }
+        }
+
         private static void InteractiveConsole()
         {
             // Initialize the interactive console

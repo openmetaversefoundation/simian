@@ -36,36 +36,82 @@ namespace Simian.Protocols.Linden
     /// LSL event types
     /// </summary>
     [Flags]
-    public enum LSLEventFlags
+    public enum LSLEventFlags : long
     {
-        attach = 1 << 0,
-        collision = 1 << 1,
-        collision_end = 1 << 2,
-        collision_start = 1 << 3,
-        control = 1 << 4,
-        dataserver = 1 << 5,
-        email = 1 << 6,
-        http_response = 1 << 7,
-        land_collision = 1 << 8,
-        land_collision_end = 1 << 9,
-        land_collision_start = 1 << 10,
-        at_target = 1 << 11,
-        at_rot_target = 1 << 12,
-        listen = 1 << 13,
-        money = 1 << 14,
-        moving_end = 1 << 15,
-        moving_start = 1 << 16,
-        not_at_rot_target = 1 << 17,
-        not_at_target = 1 << 18,
-        remote_data = 1 << 19,
-        run_time_permissions = 1 << 20,
-        state_entry = 1 << 21,
-        state_exit = 1 << 22,
-        timer = 1 << 23,
-        touch = 1 << 24,
-        touch_end = 1 << 25,
-        touch_start = 1 << 26,
-        object_rez = 1 << 27
+        /// <summary>Triggered on any state transition and startup</summary>
+        state_entry = 1 << 0,
+        /// <summary>Triggered on a qualifying state transition.</summary>
+        state_exit = 1 << 1,
+        /// <summary>Triggered by the start of an agent clicking the script's container</summary>
+        touch_start = 1 << 2,
+        /// <summary>Triggered while an agent is clicking script's container. It will continue 
+        /// to be triggered until the the agent releases the click (it triggers multiple times)</summary>
+        touch = 1 << 3,
+        /// <summary>Triggered when an agent finishes clicking on the script's container</summary>
+        touch_end = 1 << 4,
+        /// <summary>Triggered when the script's container starts colliding with another object</summary>
+        collision_start = 1 << 5,
+        /// <summary>Triggered while the script's container is colliding with another object (it 
+        /// triggers multiple times)</summary>
+        collision = 1 << 6,
+        /// <summary>Triggered when the script's container stops colliding with another object</summary>
+        collision_end = 1 << 7,
+        /// <summary>Triggered when the script's container starts colliding with land</summary>
+        land_collision_start = 1 << 8,
+        /// <summary>Triggered while the script's container is colliding with land (it triggers 
+        /// multiple times)</summary>
+        land_collision = 1 << 9,
+        /// <summary>Triggered when the script's container stops colliding with land</summary>
+        land_collision_end = 1 << 10,
+        /// <summary>Timer-based event. Result of the llSetTimerEvent library function call</summary>
+        timer = 1 << 11,
+        /// <summary>Trigged by chat, use llListen to enable and filter</summary>
+        listen = 1 << 12,
+        /// <summary>Triggered when the script's container is rezzed (by script or by user). Also 
+        /// triggered in attachments when a user logs in, or when the object is attached from 
+        /// inventory</summary>
+        on_rez = 1 << 13,
+        /// <summary>Result from a call to llSensor or llSensorRepeat</summary>
+        sensor = 1 << 14,
+        /// <summary>Result from a call to llSensor or llSensorRepeat</summary>
+        no_sensor = 1 << 15,
+        /// <summary>Result of llTakeControls library function call and user input</summary>
+        control = 1 << 16,
+        /// <summary>Triggered when money is paid to the script's container</summary>
+        money = 1 << 17,
+        /// <summary>Triggered as a result of calling llGetNextEmail where there is a matching 
+        /// email in the email queue</summary>
+        email = 1 << 18,
+        /// <summary>Result of llTarget library function call</summary>
+        at_target = 1 << 19,
+        /// <summary>Result of llTarget library function call</summary>
+        not_at_target = 1 << 20,
+        /// <summary>Result of llRotTarget library function call</summary>
+        at_rot_target = 1 << 21,
+        /// <summary>Result of llRotTarget library function call</summary>
+        not_at_rot_target = 1 << 22,
+        /// <summary>Triggered when an agent grants run time permissions to the script's container</summary>
+        run_time_permissions = 1 << 23,
+        /// <summary>Various changes to the script's container trigger this event</summary>
+        changed = 1 << 24,
+        /// <summary>Triggered when the script's container is attached or detached from an agent</summary>
+        attach = 1 << 25,
+        /// <summary>Triggered when the script receives an asynchronous data callback</summary>
+        dataserver = 1 << 26,
+        /// <summary>Triggered when the script receives a link message that was sent by a call to 
+        /// llMessageLinked. llMessageLinked is used to send messages from one script to another in
+        /// the same linkset</summary>
+        link_message = 1 << 27,
+        /// <summary>Triggered when the script's container begins moving</summary>
+        moving_start = 1 << 28,
+        /// <summary>Triggered when the script's container stops moving</summary>
+        moving_end = 1 << 29,
+        /// <summary>Triggered when the script's container rezzes another object</summary>
+        object_rez = 1 << 30,
+        /// <summary>Triggered by various XML-RPC calls</summary>
+        remote_data = 1 << 31,
+        /// <summary>Triggered when the script receives a response to an llHTTPRequest</summary>
+        http_response = 1 << 32
     }
 
     public static class LSLEventFlagsExtensions
@@ -143,11 +189,7 @@ namespace Simian.Protocols.Linden
         void SetStartParameter(UUID scriptID, int startParam);
         int GetStartParameter(UUID scriptID);
 
-        LSLEventFlags GetEventsForState(UUID scriptID, string state);
-
         void SetScriptMinEventDelay(UUID scriptID, double minDelay);
-
-        void TriggerState(UUID scriptID, string newState);
 
         void ApiResetScript(UUID scriptID);
         void ResetScript(UUID scriptID);

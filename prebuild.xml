@@ -223,6 +223,36 @@
       </Files>
     </Project>
     
+    <Project name="Simian.Scripting.VEngine" path="Simian.Scripting.VEngine" type="Library" rootNamespace="Simian.Scripting.VEngine" frameworkVersion="v3_5">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../bin/Debug/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../bin/Release/</OutputPath>
+          <XmlDocFile>Simian.Scripting.VEngine.xml</XmlDocFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../lib/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Core"/>
+      <Reference name="System.ComponentModel.Composition" path="../lib/" localCopy="true"/>
+      <Reference name="log4net" path="../lib/" localCopy="true"/>
+      <Reference name="Nini" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverse" path="../lib/" localCopy="true"/>
+      <Reference name="OpenMetaverseTypes" path="../lib/" localCopy="true"/>
+      <Reference name="LSOVM" path="../lib/" localCopy="true"/>
+      <Reference name="Simian"/>
+      <Reference name="Simian.Protocols.Linden"/>
+      <Reference name="Simian.Scripting.LindenApi"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
     <!-- Protocols -->
     
     <Project name="Simian.Protocols.Linden" path="Simian.Protocols.Linden" type="Library" rootNamespace="Simian.Protocols.Linden" frameworkVersion="v3_5">

@@ -55,7 +55,7 @@ namespace Simian.Protocols.Linden.Packets
         #region Constants
 
         // TODO: Enable this when the stable viewer release has a functional cache
-        const bool CACHE_CHECK_ENABLED = false;
+        public static readonly bool CACHE_CHECK_ENABLED = false;
 
         const string OBJECT_UPDATE = "UpdateObject";
         const string OBJECT_REMOVE = "RemoveObject";

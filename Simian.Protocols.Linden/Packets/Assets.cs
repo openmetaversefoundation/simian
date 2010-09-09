@@ -221,6 +221,8 @@ namespace Simian.Protocols.Linden.Packets
                 else
                 {
                     m_log.Debug("Ignoring LSLBytecode asset upload");
+                    // DEBUG:
+                    File.WriteAllBytes(assetID.ToString() + ".lso", request.AssetBlock.AssetData);
                 }
 
                 // Send a success response
@@ -243,12 +245,12 @@ namespace Simian.Protocols.Linden.Packets
                 }
 
                 asset.Temporary = (request.AssetBlock.Tempfile | request.AssetBlock.StoreLocal);
-
-                ulong transferID;
-                if (type != AssetType.LSLBytecode)
-                    transferID = request.AssetBlock.TransactionID.GetULong();
-                else
-                    transferID = UUID.Random().GetULong();
+                ulong transferID = request.AssetBlock.TransactionID.GetULong();
+                
+                // Prevent LSL bytecode transfers from colliding with LSL source transfers, which 
+                // use a colliding UUID
+                if (type == AssetType.LSLBytecode)
+                    ++transferID;
 
                 RequestXferPacket xfer = new RequestXferPacket();
                 xfer.XferID.DeleteOnCompletion = request.AssetBlock.Tempfile;
@@ -259,11 +261,11 @@ namespace Simian.Protocols.Linden.Packets
                 xfer.XferID.VFileID = asset.ID;
                 xfer.XferID.VFileType = request.AssetBlock.Type;
 
-                m_log.DebugFormat("Starting upload for {0} / {1} ({2})", assetID, xfer.XferID.ID, asset.ContentType);
+                m_log.DebugFormat("Starting upload for {0} / {1} ({2})", assetID, transferID, asset.ContentType);
 
                 // Add this asset to the current upload list
                 lock (currentUploads)
-                    currentUploads[xfer.XferID.ID] = asset;
+                    currentUploads[transferID] = asset;
 
                 m_udp.SendPacket(agent, xfer, ThrottleCategory.Task, false);
             }
@@ -320,6 +322,8 @@ namespace Simian.Protocols.Linden.Packets
                         else
                         {
                             m_log.Debug("Ignoring LSLBytecode asset upload");
+                            // DEBUG:
+                            File.WriteAllBytes(asset.ID.ToString() + ".lso", asset.Data);
                         }
 
                         AssetUploadCompletePacket complete = new AssetUploadCompletePacket();
