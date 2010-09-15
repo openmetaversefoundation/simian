@@ -129,7 +129,7 @@ namespace Simian
             #endregion log4net Setup
 
             // Set the working directory to the application dir
-            Directory.SetCurrentDirectory(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location));
+            Directory.SetCurrentDirectory(Util.ExecutingDirectory());
 
             // Initialize the Simian object
             m_simian = new Simian();

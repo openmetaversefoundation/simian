@@ -75,6 +75,50 @@ namespace Simian
             response.Body.Write(responseData, 0, responseData.Length);
         }
 
+        /// <summary>
+        /// Fetches a URL and returns the response or error message as a string
+        /// </summary>
+        /// <param name="url">URL to fetch with GET</param>
+        /// <param name="responseStr">Will contain the HTTP body data, or the 
+        /// error message on failure</param>
+        /// <returns>True if the request succeeded, otherwise false</returns>
+        public static bool TryGetUrl(string url, out string responseStr)
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(url);
+
+                using (WebResponse response = request.GetResponse())
+                {
+                    using (Stream responseStream = response.GetResponseStream())
+                    {
+                        try
+                        {
+                            responseStr = responseStream.GetStreamString();
+                            return true;
+                        }
+                        catch
+                        {
+                            responseStr = "Failed to parse the response.";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_log.Warn("GET on URL " + url + " failed: " + ex.Message);
+                responseStr = ex.Message;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Retrieves a web service using HTTP GET and returns it as an OSDMap
+        /// </summary>
+        /// <param name="url">URL to fetch</param>
+        /// <returns>An OSDMap containing the response. If an error occurred, the map will contain 
+        /// a key/value pair named Message</returns>
         public static OSDMap GetService(string url)
         {
             string errorMessage;

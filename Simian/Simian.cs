@@ -41,33 +41,26 @@ using OpenMetaverse;
 
 namespace Simian
 {
-    public delegate void TaskCallback();
     public delegate void CommandCallback(string command, string[] args, bool printHelp);
     public delegate bool AssetFilterCallback(Asset asset);
 
     public class Simian
     {
         public const int LONG_SLEEP_INTERVAL = 200;
-
-        const string SIMIAN_CONFIG_PATH = "Config";
-        const string SIMIAN_CONFIG_FILE = "SimianDefaults.ini";
-        const string SIMIAN_CONFIG_USER_FILE = "Simian.ini";
-        const string MIME_TYPE_CONFIG_FILE = "mime.types";
+        public const string CAPABILITY_PATH = "/caps/";
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         #region Fields
 
         private CompositionContainer m_moduleContainer;
+        private ConfigurationLoader m_configLoader;
         private IConfigSource m_configSource;
         private IApplicationModule[] m_applicationModules;
         private ISceneFactory m_sceneFactory;
         private IHttpServer m_httpServer;
         private CapabilityRouter m_capabilityRouter;
         private Timer m_heartbeatTimer;
-
-        private Dictionary<string, string> m_typesToExtensions = new Dictionary<string, string>();
-        private Dictionary<string, string> m_extensionsToTypes = new Dictionary<string, string>();
 
         private Dictionary<string, AssetFilterCallback> m_assetFilters = new Dictionary<string, AssetFilterCallback>();
 
@@ -117,54 +110,8 @@ namespace Simian
 
             #endregion Environment.TickCount Measurement
 
-            #region Config Initialization
-
-            // Create the user config include file if it doesn't exist to
-            // prevent a warning message at startup
-            try
-            {
-                string userConfigPath = GetConfigPath(SIMIAN_CONFIG_USER_FILE);
-                if (!File.Exists(userConfigPath))
-                {
-                    using (FileStream stream = File.Create(userConfigPath))
-                    { }
-                }
-            }
-            catch { }
-
-            string mimeConfigPath = GetConfigPath(MIME_TYPE_CONFIG_FILE);
-
-            // Load and parse the MIME type file
-            try
-            {
-                string[] mimeLines = File.ReadAllLines(mimeConfigPath);
-
-                char[] splitChars = new char[] { ' ', '\t' };
-
-                for (int i = 0; i < mimeLines.Length; i++)
-                {
-                    string line = mimeLines[i].Trim();
-
-                    if (!String.IsNullOrEmpty(line) && line[0] != '#')
-                    {
-                        string[] parts = line.Split(splitChars, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length > 1)
-                        {
-                            string mimeType = parts[0];
-                            m_typesToExtensions[mimeType] = parts[1];
-
-                            for (int j = 1; j < parts.Length; j++)
-                                m_extensionsToTypes[parts[j]] = mimeType;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                m_log.Error("Failed to load MIME types from  " + mimeConfigPath + ": " + ex.Message);
-            }
-
-            #endregion Config Initialization
+            // Config initialization
+            m_configLoader = new ConfigurationLoader(ConfigurationLoader.SIMIAN_CONFIG_FILE, ConfigurationLoader.SIMIAN_CONFIG_USER_FILE);
 
             // Add a few commands
             AddCommandHandler("help", HelpHandler);
@@ -320,26 +267,14 @@ namespace Simian
             for (int i = 0; i < m_applicationModules.Length; i++)
             {
                 IApplicationModule module = m_applicationModules[i];
-
                 if (!(module is ISceneFactory))
                     module.Start(this);
-
-                // Get a reference to the IHttpServer if we have one
-                if (m_capabilityRouter == null && module is IHttpServer)
-                {
-                    // Create a global capability router
-                    string capsPath = "/caps/";
-                    m_httpServer = (IHttpServer)m_applicationModules[i];
-                    m_capabilityRouter = new CapabilityRouter(m_httpServer.HttpAddress.Combine(capsPath));
-                    m_httpServer.AddHandler(null, null, capsPath, false, false, m_capabilityRouter.RouteCapability);
-                }
             }
 
             // ISceneFactory modules are always started last
             for (int i = 0; i < m_applicationModules.Length; i++)
             {
                 IApplicationModule module = m_applicationModules[i];
-
                 if (module is ISceneFactory)
                     module.Start(this);
             }
@@ -368,6 +303,14 @@ namespace Simian
 
             #endregion Logging
 
+            // Get a reference to the HTTP server if we have one
+            m_httpServer = GetAppModule<IHttpServer>();
+            if (m_httpServer != null)
+            {
+                m_capabilityRouter = new CapabilityRouter(m_httpServer.HttpAddress.Combine(CAPABILITY_PATH));
+                m_httpServer.AddHandler(null, null, CAPABILITY_PATH, false, false, m_capabilityRouter.RouteCapability);
+            }
+
             // Get a reference to the ISceneFactory if we have one
             m_sceneFactory = GetAppModule<ISceneFactory>();
             if (m_sceneFactory != null)
@@ -378,7 +321,6 @@ namespace Simian
 
         public T GetAppModule<T>()
         {
-            // TODO: So slow!
             foreach (IApplicationModule module in m_applicationModules)
             {
                 if (module is T)
@@ -652,7 +594,7 @@ namespace Simian
         public string ContentTypeToExtension(string contentType)
         {
             string extension;
-            if (!String.IsNullOrEmpty(contentType) && m_typesToExtensions.TryGetValue(contentType, out extension))
+            if (!String.IsNullOrEmpty(contentType) && m_configLoader.TypesToExtensions.TryGetValue(contentType, out extension))
                 return extension;
             else
                 return null;
@@ -661,7 +603,7 @@ namespace Simian
         public string ExtensionToContentType(string extension)
         {
             string contentType;
-            if (m_extensionsToTypes.TryGetValue(extension, out contentType))
+            if (m_configLoader.ExtensionsToTypes.TryGetValue(extension, out contentType))
                 return contentType;
             else
                 return "application/octet-stream";
@@ -669,84 +611,9 @@ namespace Simian
 
         #endregion MIME Type / File Extension Conversion
 
-        #region Configuration Helpers
-
         public IConfigSource GetConfigCopy()
         {
-            return LoadConfig(GetConfigPath(SIMIAN_CONFIG_FILE));
+            return m_configLoader.GetConfigCopy();
         }
-
-        private IniConfigSource LoadConfig(string filename)
-        {
-            IniConfigSource currentConfig = new IniConfigSource();
-            List<string> currentConfigLines = new List<string>();
-
-            try
-            {
-                List<string> configLines = new List<string>(File.ReadAllLines(filename));
-
-                for (int i = 0; i < configLines.Count; i++)
-                {
-                    string line = configLines[i].Trim();
-
-                    if (line.StartsWith("Include "))
-                    {
-                        // Compile the current config lines, compile the included config file, and combine them
-                        currentConfig.Merge(CompileConfig(currentConfigLines));
-                        currentConfigLines.Clear();
-
-                        // Compile the included config file
-                        string includeFilename = GetConfigPath(line.Substring(8).Trim());
-                        IniConfigSource includeConfig = LoadConfig(includeFilename);
-
-                        // Merge the included config with the curent config
-                        currentConfig.Merge(includeConfig);
-                    }
-                    else if (!String.IsNullOrEmpty(line) && !line.StartsWith(";"))
-                    {
-                        currentConfigLines.Add(line);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                m_log.Error("Failed to load config file " + filename + ": " + ex.Message);
-            }
-
-            currentConfig.Merge(CompileConfig(currentConfigLines));
-            return currentConfig;
-        }
-
-        private IniConfigSource CompileConfig(List<string> lines)
-        {
-            using (MemoryStream stream = new MemoryStream())
-            {
-                for (int i = 0; i < lines.Count; i++)
-                {
-                    byte[] line = Encoding.UTF8.GetBytes(lines[i]);
-                    stream.Write(line, 0, line.Length);
-                    stream.WriteByte(0x0A); // Linefeed
-                }
-
-                stream.Seek(0, SeekOrigin.Begin);
-                return new IniConfigSource(stream);
-            }
-        }
-
-        private string GetConfigPath(string filename)
-        {
-            if (Path.IsPathRooted(filename))
-            {
-                return filename;
-            }
-            else
-            {
-                string currentDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string configPath = Path.Combine(currentDir, SIMIAN_CONFIG_PATH);
-                return Path.Combine(configPath, filename);
-            }
-        }
-
-        #endregion Configuration Helpers
     }
 }

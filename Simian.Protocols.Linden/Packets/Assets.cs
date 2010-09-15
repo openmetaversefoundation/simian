@@ -197,12 +197,15 @@ namespace Simian.Protocols.Linden.Packets
                 return;
             }
 
+            bool local = request.AssetBlock.StoreLocal | type == AssetType.LSLBytecode;
+            bool temp = request.AssetBlock.Tempfile;
+
             // Check if the asset is small enough to fit in a single packet
             if (request.AssetBlock.AssetData.Length != 0)
             {
                 // Create a new asset from the completed upload
-                Asset asset = CreateAsset(type, assetID, DateTime.UtcNow, agent.ID,
-                    request.AssetBlock.StoreLocal, request.AssetBlock.Tempfile, request.AssetBlock.AssetData);
+                
+                Asset asset = CreateAsset(type, assetID, DateTime.UtcNow, agent.ID, local, temp, request.AssetBlock.AssetData);
 
                 if (asset == null)
                 {
@@ -210,20 +213,10 @@ namespace Simian.Protocols.Linden.Packets
                     return;
                 }
 
-                if (type != AssetType.LSLBytecode)
-                {
-                    // Store the asset
-                    m_log.DebugFormat("Storing uploaded asset {0} ({1})", assetID, asset.ContentType);
-                    asset.Temporary = (request.AssetBlock.Tempfile | request.AssetBlock.StoreLocal);
-                    if (!m_assets.StoreAsset(asset))
-                        m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", assetID, asset.ContentType);
-                }
-                else
-                {
-                    m_log.Debug("Ignoring LSLBytecode asset upload");
-                    // DEBUG:
-                    File.WriteAllBytes(assetID.ToString() + ".lso", request.AssetBlock.AssetData);
-                }
+                // Store the asset
+                m_log.DebugFormat("Storing uploaded asset {0} ({1})", assetID, asset.ContentType);
+                if (!m_assets.StoreAsset(asset))
+                    m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", assetID, asset.ContentType);
 
                 // Send a success response
                 AssetUploadCompletePacket complete = new AssetUploadCompletePacket();
@@ -235,8 +228,7 @@ namespace Simian.Protocols.Linden.Packets
             else
             {
                 // Create a new (empty) asset for the upload
-                Asset asset = CreateAsset(type, assetID, DateTime.UtcNow, agent.ID, request.AssetBlock.StoreLocal,
-                    request.AssetBlock.Tempfile, null);
+                Asset asset = CreateAsset(type, assetID, DateTime.UtcNow, agent.ID, local, temp, null);
 
                 if (asset == null)
                 {
@@ -309,22 +301,13 @@ namespace Simian.Protocols.Linden.Packets
                     if (lastPacket)
                     {
                         // Asset upload finished
-                        if (type != AssetType.LSLBytecode)
-                        {
-                            lock (currentUploads)
-                                currentUploads.Remove(xfer.XferID.ID);
+                        m_log.DebugFormat("Completed Xfer upload of asset {0} ({1})", asset.ID, asset.ContentType);
+                        lock (currentUploads)
+                            currentUploads.Remove(xfer.XferID.ID);
 
-                            m_log.DebugFormat("Completed Xfer upload of asset {0} ({1})", asset.ID, asset.ContentType);
-
-                            if (!m_assets.StoreAsset(asset))
-                                m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
-                        }
-                        else
-                        {
-                            m_log.Debug("Ignoring LSLBytecode asset upload");
-                            // DEBUG:
-                            File.WriteAllBytes(asset.ID.ToString() + ".lso", asset.Data);
-                        }
+                        // Store the uploaded asset
+                        if (!m_assets.StoreAsset(asset))
+                            m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
 
                         AssetUploadCompletePacket complete = new AssetUploadCompletePacket();
                         complete.AssetBlock.Success = true;

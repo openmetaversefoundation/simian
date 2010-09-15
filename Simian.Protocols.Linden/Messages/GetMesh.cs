@@ -35,10 +35,9 @@ using OpenMetaverse;
 
 namespace Simian.Protocols.Linden
 {
-    [SceneModule("GetTexture")]
-    public class GetTexture : ISceneModule
+    [SceneModule("GetMesh")]
+    public class GetMesh : ISceneModule
     {
-        private static readonly UUID MISSING_IMAGE = new UUID("32dfd1c8-7ff6-5909-d983-6d4adfb4255d");
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IScene m_scene;
@@ -52,108 +51,98 @@ namespace Simian.Protocols.Linden
             m_httpServer = m_scene.Simian.GetAppModule<IHttpServer>();
             if (m_httpServer == null)
             {
-                m_log.Warn("GetTexture requires an IHttpServer");
+                m_log.Warn("GetMesh requires an IHttpServer");
                 return;
             }
 
             m_assetClient = m_scene.Simian.GetAppModule<IAssetClient>();
             if (m_assetClient == null)
             {
-                m_log.Warn("GetTexture requires an IAssetClient");
+                m_log.Warn("GetMesh requires an IAssetClient");
                 return;
             }
 
-            m_scene.Capabilities.AddProtectedResource(m_scene.ID, "GetTexture", GetTextureHandler);
+            m_scene.Capabilities.AddProtectedResource(m_scene.ID, "GetMesh", GetMeshHandler);
         }
 
         public void Stop()
         {
             if (m_httpServer != null)
             {
-                m_scene.Capabilities.RemoveProtectedResource(m_scene.ID, "GetTexture");
+                m_scene.Capabilities.RemoveProtectedResource(m_scene.ID, "GetMesh");
             }
         }
 
-        private void GetTextureHandler(Capability cap, IHttpClientContext context, IHttpRequest request, IHttpResponse response)
+        private void GetMeshHandler(Capability cap, IHttpClientContext context, IHttpRequest request, IHttpResponse response)
         {
             // TODO: Change this to a config option
             const string REDIRECT_URL = null;
 
-            // Try to parse the texture ID from the request URL
+            // Try to parse the mesh ID from the request URL
             NameValueCollection query = HttpUtility.ParseQueryString(request.Uri.Query);
-            string textureStr = query.GetOne("texture_id");
+            string meshStr = query.GetOne("mesh_id");
 
-            UUID textureID;
-            if (!String.IsNullOrEmpty(textureStr) && UUID.TryParse(textureStr, out textureID))
+            UUID meshID;
+            if (!String.IsNullOrEmpty(meshStr) && UUID.TryParse(meshStr, out meshID))
             {
-                Asset texture;
+                Asset mesh;
 
                 if (!String.IsNullOrEmpty(REDIRECT_URL))
                 {
-                    // Only try to fetch locally cached textures. Misses are redirected
-                    if (m_assetClient.TryGetCachedAsset(textureID, "image/x-j2c", out texture))
+                    // Only try to fetch locally cached meshes. Misses are redirected
+                    if (m_assetClient.TryGetCachedAsset(meshID, "application/vnd.ll.mesh", out mesh))
                     {
-                        SendTexture(request, response, texture);
+                        SendMesh(request, response, mesh);
                     }
                     else
                     {
-                        string textureUrl = REDIRECT_URL + textureID.ToString();
-                        m_log.Debug("Redirecting texture request to " + textureUrl);
-                        response.Redirect(textureUrl);
+                        string meshUrl = REDIRECT_URL + meshID.ToString();
+                        m_log.Debug("Redirecting mesh request to " + meshUrl);
+                        response.Redirect(meshUrl);
                     }
                 }
                 else
                 {
                     // Fetch locally or remotely. Misses return a 404
-                    if (m_assetClient.TryGetAsset(textureID, "image/x-j2c", out texture))
+                    if (m_assetClient.TryGetAsset(meshID, "application/vnd.ll.mesh", out mesh))
                     {
-                        SendTexture(request, response, texture);
+                        SendMesh(request, response, mesh);
                     }
                     else
                     {
-                        m_log.Warn("Texture " + textureID + " not found");
-
-                        if (m_assetClient.TryGetCachedAsset(MISSING_IMAGE, "image/x-j2c", out texture))
-                        {
-                            SendTexture(request, response, texture);
-                        }
-                        else
-                        {
-                            m_log.Warn("Missing image texture " + MISSING_IMAGE + " not found, returning a 404");
-                            response.Status = System.Net.HttpStatusCode.NotFound;
-                        }
+                        m_log.Warn("Mesh " + meshID + " not found, returning a 404");
+                        response.Status = System.Net.HttpStatusCode.NotFound;
                     }
                 }
             }
             else
             {
-                m_log.Warn("Failed to parse a texture_id from GetTexture request: " + request.Uri);
+                m_log.Warn("Failed to parse a mesh_id from GetMesh request: " + request.Uri);
             }
         }
 
-        private void SendTexture(IHttpRequest request, IHttpResponse response, Asset texture)
+        private void SendMesh(IHttpRequest request, IHttpResponse response, Asset asset)
         {
-            string range = request.Headers.GetOne("Range");
+            // TODO: Enable this again when we confirm the viewer is properly handling partial mesh content
+            string range = null; //request.Headers.GetOne("Range");
             if (!String.IsNullOrEmpty(range))
             {
                 // Range request
                 int start, end;
                 if (TryParseRange(range, out start, out end))
                 {
-                    end = Utils.Clamp(end, 1, texture.Data.Length - 1);
+                    end = Utils.Clamp(end, 1, asset.Data.Length);
                     start = Utils.Clamp(start, 0, end - 1);
-                    int len = end - start + 1;
 
-                    //m_log.Debug("Serving " + start + " to " + end + " of " + texture.Data.Length + " bytes for texture " + texture.ID);
+                    //m_log.Debug("Serving " + start + " to " + end + " of " + asset.Data.Length + " bytes for mesh " + asset.ID);
 
-                    if (len < texture.Data.Length)
+                    if (end - start < asset.Data.Length)
                         response.Status = System.Net.HttpStatusCode.PartialContent;
 
-                    response.ContentLength = len;
-                    response.ContentType = texture.ContentType;
-                    response.AddHeader("Content-Range", String.Format("bytes {0}-{1}/{2}", start, end, texture.Data.Length));
+                    response.ContentLength = end - start;
+                    response.ContentType = asset.ContentType;
 
-                    response.Body.Write(texture.Data, start, len);
+                    response.Body.Write(asset.Data, start, end - start);
                 }
                 else
                 {
@@ -164,9 +153,9 @@ namespace Simian.Protocols.Linden
             else
             {
                 // Full content request
-                response.ContentLength = texture.Data.Length;
-                response.ContentType = texture.ContentType;
-                response.Body.Write(texture.Data, 0, texture.Data.Length);
+                response.ContentLength = asset.Data.Length;
+                response.ContentType = asset.ContentType;
+                response.Body.Write(asset.Data, 0, asset.Data.Length);
             }
         }
 

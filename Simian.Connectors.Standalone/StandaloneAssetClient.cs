@@ -252,7 +252,7 @@ namespace Simian.Connectors.Standalone
 
         private void LoadDefaultAssets()
         {
-            string executingDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string executingDir = Util.ExecutingDirectory();
             string defaultAssetPath = Path.Combine(executingDir, DEFAULT_ASSETS_PATH);
 
             try
