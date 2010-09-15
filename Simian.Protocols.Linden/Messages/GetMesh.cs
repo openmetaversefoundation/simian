@@ -131,18 +131,20 @@ namespace Simian.Protocols.Linden
                 int start, end;
                 if (TryParseRange(range, out start, out end))
                 {
-                    end = Utils.Clamp(end, 1, asset.Data.Length);
+                    end = Utils.Clamp(end, 1, asset.Data.Length - 1);
                     start = Utils.Clamp(start, 0, end - 1);
+                    int len = end - start + 1;
 
                     //m_log.Debug("Serving " + start + " to " + end + " of " + asset.Data.Length + " bytes for mesh " + asset.ID);
 
-                    if (end - start < asset.Data.Length)
+                    if (len < asset.Data.Length)
                         response.Status = System.Net.HttpStatusCode.PartialContent;
 
-                    response.ContentLength = end - start;
+                    response.ContentLength = len;
                     response.ContentType = asset.ContentType;
+                    response.AddHeader("Content-Range", String.Format("bytes {0}-{1}/{2}", start, end, asset.Data.Length));
 
-                    response.Body.Write(asset.Data, start, end - start);
+                    response.Body.Write(asset.Data, start, len);
                 }
                 else
                 {
