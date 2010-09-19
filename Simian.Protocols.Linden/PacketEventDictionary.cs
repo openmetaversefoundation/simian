@@ -151,7 +151,7 @@ namespace Simian.Protocols.Linden
             }
 
             // TODO: Optionally log timing info for this packet
-            int now = Environment.TickCount & Int32.MaxValue;
+            int now = Util.TickCount();
 
             int recvTime = incomingPacket.StartedHandling - incomingPacket.Received;
             if (recvTime > 1000)

@@ -157,7 +157,8 @@ namespace Simian.Protocols.Linden.Packets
                 {
                     IScenePresence owner;
                     if (m_scene.TryGetPresence(e.Source.OwnerID, out owner))
-                        m_scene.CreateInterestListEventFor(owner, new InterestListEvent(UUID.Random(), VIEWER_CHAT, scenePosition, new Vector3(e.AudibleDistance), e));
+                        // NOTE: Audible distance is ignored for EntityChatType.[Owner/Debug]
+                        m_scene.CreateInterestListEventFor(owner, new InterestListEvent(UUID.Random(), VIEWER_CHAT, scenePosition, Vector3.Zero, e));
                     else
                         m_log.Warn("Can't send direct chat to missing presence " + e.Source.OwnerID);
                 }

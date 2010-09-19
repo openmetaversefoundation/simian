@@ -76,7 +76,7 @@ namespace Simian
             lock (m_pendingEvents)
             {
                 m_running = true;
-                m_lastEventHandler = Environment.TickCount & Int32.MaxValue;
+                m_lastEventHandler = Util.TickCount();
                 m_timer = new Timer(EventHandler, null, m_timerIntervalMS, Timeout.Infinite);
             }
         }
@@ -129,7 +129,7 @@ namespace Simian
                 if (m_running)
                 {
                     // Check how much time has passed since the last call
-                    int now = Environment.TickCount & Int32.MaxValue;
+                    int now = Util.TickCount();
                     int timePassed = now - m_lastEventHandler;
                     if (!m_timeEvents)
                         m_lastEventHandler = now;
@@ -173,7 +173,7 @@ namespace Simian
             }
 
             if (m_timeEvents)
-                m_lastEventHandler = Environment.TickCount & Int32.MaxValue;
+                m_lastEventHandler = Util.TickCount();
 
             // Start the timer again
             if (m_running)

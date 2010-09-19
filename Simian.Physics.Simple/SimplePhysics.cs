@@ -311,7 +311,7 @@ namespace Simian.Physics.Simple
                 waterHeight = m_terrain.WaterHeight;
             float waterChestHeight = waterHeight - (physical.Scale.Z * .33f);
             float speed = elapsedTime;
-            float fallElapsed = (float)(Environment.TickCount - physical.FallStart) / 1000f;
+            float fallElapsed = (float)(Util.TickCount() - physical.FallStart) / 1000f;
             UUID anim = UUID.Zero;
             List<ISceneEntity> colliders = new List<ISceneEntity>();
 
@@ -433,7 +433,7 @@ namespace Simian.Physics.Simple
 
                     if (physical.FallStart == 0) //|| (fallElapsed > FALL_DELAY && velocity.Z >= 0f))
                     { //just started falling
-                        physical.FallStart = Environment.TickCount;
+                        physical.FallStart = Util.TickCount();
                     }
                     else
                     {
@@ -523,9 +523,9 @@ namespace Simian.Physics.Simple
                             move.Z = 0f; //override Z control
                             anim = Animations.PRE_JUMP;
 
-                            presence.JumpStart = Environment.TickCount;
+                            presence.JumpStart = Util.TickCount();
                         }
-                        else if (Environment.TickCount - presence.JumpStart > PREJUMP_DELAY * 1000)
+                        else if (Util.TickCount() - presence.JumpStart > PREJUMP_DELAY * 1000)
                         { //start actual jump
 
                             if (presence.JumpStart == -1)

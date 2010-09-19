@@ -53,6 +53,7 @@ namespace Simian.Protocols.Linden
         private IScene m_scene;
         private IDataStore m_dataStore;
         private IPrimMesher m_primMesher;
+        private ILSLScriptEngine m_scriptEngine;
         ThrottledQueue<UUID, PrimSerialization> m_writeQueue;
 
         public void Start(IScene scene)
@@ -72,6 +73,8 @@ namespace Simian.Protocols.Linden
                 m_log.Error("LLPrimitiveLoader requires an IPrimMesher");
                 return;
             }
+
+            m_scriptEngine = m_scene.GetSceneModule<ILSLScriptEngine>();
 
             m_writeQueue = new ThrottledQueue<UUID, PrimSerialization>(5, 1000 * 30, true, SerializationHandler);
             m_writeQueue.Start();
@@ -170,6 +173,10 @@ namespace Simian.Protocols.Linden
                                 m_scene.EntityAddOrUpdate(this, prim, UpdateFlags.FullUpdate, 0);
                         }
 
+                        // Start any scripts
+                        for (int j = 0; j < linkset.Count; j++)
+                            StartScripts(linkset[j]);
+
                         ++linksetCount;
                         primCount += linkset.Count;
                     }
@@ -182,6 +189,19 @@ namespace Simian.Protocols.Linden
             }
 
             m_log.DebugFormat("Deserialized and loaded {0} LLPrimitives in {1} linksets", primCount, linksetCount);
+        }
+
+        private void StartScripts(LLPrimitive prim)
+        {
+            if (m_scriptEngine == null)
+                return;
+
+            IList<LLInventoryTaskItem> scriptItems = prim.Inventory.FindAllItems(item => item.AssetType == AssetType.LSLText);
+            for (int i = 0; i < scriptItems.Count; i++)
+            {
+                LLInventoryItem item = scriptItems[i];
+                m_scriptEngine.RezScript(item.ID, item.AssetID, prim, 0);
+            }
         }
     }
 }

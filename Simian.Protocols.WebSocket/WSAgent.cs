@@ -248,7 +248,7 @@ namespace Simian.Protocols.WebSocket
             }
 
             // Initialize this to a sane value to prevent early disconnects
-            TickLastMessageReceived = Environment.TickCount & Int32.MaxValue;
+            TickLastMessageReceived = Util.TickCount();
         }
 
         /// <summary>
@@ -591,7 +591,7 @@ namespace Simian.Protocols.WebSocket
         /// for</param>
         private void BeginFireQueueEmpty(ThrottleCategoryFlags categories)
         {
-            if (m_nextOnQueueEmpty != 0 && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
+            if (m_nextOnQueueEmpty != 0 && Util.TickCount() >= m_nextOnQueueEmpty)
             {
                 // Use a value of 0 to signal that FireQueueEmpty is running
                 m_nextOnQueueEmpty = 0;
@@ -614,7 +614,7 @@ namespace Simian.Protocols.WebSocket
 
             ThrottleCategoryFlags categories = (ThrottleCategoryFlags)o;
 
-            int start = Environment.TickCount & Int32.MaxValue;
+            int start = Util.TickCount();
 
             // Dequeue a fixed number of events from the interest list
             m_interestList.DequeueEvents(EVENTS_PER_CALLBACK);

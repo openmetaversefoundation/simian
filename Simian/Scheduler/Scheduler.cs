@@ -88,7 +88,7 @@ namespace Simian
             public ThreadWatchdogInfo(Thread thread)
             {
                 Thread = thread;
-                LastTick = Environment.TickCount & Int32.MaxValue;
+                LastTick = Util.TickCount();
             }
         }
 
@@ -145,7 +145,7 @@ namespace Simian
             try
             {
                 if (m_threads.TryGetValue(Thread.CurrentThread.ManagedThreadId, out threadInfo))
-                    threadInfo.LastTick = Environment.TickCount & Int32.MaxValue;
+                    threadInfo.LastTick = Util.TickCount();
                 else
                     AddThread(new ThreadWatchdogInfo(Thread.CurrentThread));
             }
@@ -248,7 +248,7 @@ namespace Simian
 
                 lock (m_threads)
                 {
-                    int now = Environment.TickCount & Int32.MaxValue;
+                    int now = Util.TickCount();
 
                     foreach (ThreadWatchdogInfo threadInfo in m_threads.Values)
                     {

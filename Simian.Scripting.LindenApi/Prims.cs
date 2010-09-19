@@ -50,7 +50,7 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public double llGetAlpha(IScriptInstance script, int side)
+        public float llGetAlpha(IScriptInstance script, int side)
         {
             if (script.Host is LLPrimitive)
             {
@@ -62,7 +62,7 @@ namespace Simian.Scripting.Linden
                 }
             }
 
-            return 0.0;
+            return 0.0f;
         }
 
         [ScriptMethod]
@@ -150,13 +150,8 @@ namespace Simian.Scripting.Linden
                             if (childAgent.RelativePosition == LLUtil.GetSitTarget(prim.SitPosition, childAgent.Scale))
                                 return childAgent.ID.ToString();
                         }
-
                     }
                 }
-            }
-            else
-            {
-                // TODO: Warning
             }
 
             return UUID.Zero.ToString();
@@ -207,21 +202,106 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public Quaternion llGetLocalRot(IScriptInstance script)
-        {
-            return script.Host.RelativeRotation;
-        }
-
-        [ScriptMethod]
         public Vector3 llGetPos(IScriptInstance script)
         {
             return script.Host.ScenePosition;
         }
 
         [ScriptMethod]
+        public Vector3 llGetLocalPos(IScriptInstance script)
+        {
+            return script.Host.RelativePosition;
+        }
+
+        [ScriptMethod]
         public Quaternion llGetRot(IScriptInstance script)
         {
             return script.Host.SceneRotation;
+        }
+
+        [ScriptMethod]
+        public Quaternion llGetLocalRot(IScriptInstance script)
+        {
+            return script.Host.RelativeRotation;
+        }
+
+        [ScriptMethod]
+        public string llGetScriptName(IScriptInstance script)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return String.Empty;
+
+            LLInventoryTaskItem scriptItem = prim.Inventory.FindItem(item => item.ID == script.ID);
+            if (scriptItem != null)
+                return scriptItem.Name;
+
+            return String.Empty;
+        }
+
+        [ScriptMethod]
+        public string llGetLinkKey(IScriptInstance script, int linknumber)
+        {
+            if (linknumber == LSLConstants.LINK_ROOT || linknumber == 0)
+                return GetRootEntity(script.Host).ID.ToString();
+
+            ISceneEntity[] children = GetLinkParts(script.Host, LSLConstants.LINK_ALL_CHILDREN);
+            for (int i = 0; i < children.Length; i++)
+            {
+                ISceneEntity child = children[i];
+                if (child is LLPrimitive && ((LLPrimitive)child).LinkNumber == linknumber)
+                    return child.ID.ToString();
+            }
+
+            return UUID.Zero.ToString();
+        }
+
+        public string llGetLinkName(IScriptInstance script, int linknumber)
+        {
+            ILinkable entity = script.Host as ILinkable;
+            if (entity == null)
+                return UUID.Zero.ToString();
+
+            // Simplest case, this prims link number
+            if (entity.LinkNumber == linknumber)
+                return entity.Name;
+
+            // Single prim
+            if (entity.LinkNumber == 0)
+            {
+                if (linknumber == 0)
+                    return entity.Name;
+                else
+                    return UUID.Zero.ToString();
+            }
+            
+            if (entity == GetRootEntity(entity))
+            {
+                // Special behavior for when we are the root prim
+                if (linknumber == 0)
+                    return UUID.Zero.ToString();
+                else if (linknumber < 0)
+                    linknumber = 2;
+            }
+            else
+            {
+                // If we're a child prim and link number 0, 1, or any negative number was requested
+                // return the root prim name
+                if (linknumber <= 1)
+                    return GetRootEntity(entity).Name;
+            }
+
+            System.Diagnostics.Debug.Assert(linknumber > 0);
+
+            ISceneEntity[] linkset = GetLinkParts(script.Host, LSLConstants.LINK_SET);
+            for (int i = 0; i < linkset.Length; i++)
+            {
+                ISceneEntity linksetEntity = linkset[i];
+                if (linksetEntity is ILinkable && ((ILinkable)linksetEntity).LinkNumber == linknumber)
+                    return linksetEntity.Name;
+            }
+
+            return UUID.Zero.ToString();
         }
 
         [ScriptMethod]
@@ -249,9 +329,9 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public double llGetMass(IScriptInstance script)
+        public float llGetMass(IScriptInstance script)
         {
-            double mass = 0.0f;
+            float mass = 0.0f;
 
             ISceneEntity host = script.Host;
             if (host is IPhysical)
@@ -276,7 +356,7 @@ namespace Simian.Scripting.Linden
 
             // Find the center of mass for all triangles in all linked entities
             Vector3 center = Vector3.Zero;
-            double volume = 0.0f;
+            float volume = 0.0f;
 
             // TODO: Does this formula work for multiple meshes?
             // TODO: This is a very expensive algorithm (generates a mesh for every prim in the 
@@ -335,70 +415,102 @@ namespace Simian.Scripting.Linden
                 if (prim.Parent != null)
                     point = (int)prim.Prim.PrimData.AttachmentPoint;
             }
-            else
-            {
-                // TODO: Allow non LLPrimitive attachments
-                m_log.Warn("llGetAttached called from non LLPrimitive in object \"" + script.Host.Name + "\" at " + script.Host.ScenePosition);
-            }
 
             return point;
         }
 
-        //[ScriptMethod]
-        //public List<object> llGetObjectDetails(IScriptInstance script, string objectID, List<object> details)
-        //{
-        //    List<object> ret = new List<object>();
-        //    UUID key;
-        //    ISceneEntity obj;
+        [ScriptMethod]
+        public Vector3 llGetTextureOffset(IScriptInstance script, int face)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return Vector3.Zero;
 
-        //    if (UUID.TryParse(objectID, out key) && script.Host.Scene.TryGetEntity(key, out obj))
-        //    {
-        //        for (int i = 0, len = details.Count; i < len; i++)
-        //        {
-        //            int item = details.GetIntegerItem(i);
-        //            switch (item)
-        //            {
-        //                case LSLConstants.OBJECT_CREATOR:
-        //                    ret.Add(obj.CreatorID.ToString());
-        //                    break;
-        //                case LSLConstants.OBJECT_DESC:
-        //                    if (obj is LLPrimitive)
-        //                        ret.Add(((LLPrimitive)obj).Prim.Properties.Description);
-        //                    else
-        //                        ret.Add(String.Empty);
-        //                    break;
-        //                case LSLConstants.OBJECT_GROUP:
-        //                    ret.Add(obj.GroupID.ToString());
-        //                    break;
-        //                case LSLConstants.OBJECT_NAME:
-        //                    ret.Add(obj.Name);
-        //                    break;
-        //                case LSLConstants.OBJECT_OWNER:
-        //                    ret.Add(obj.OwnerID.ToString());
-        //                    break;
-        //                case LSLConstants.OBJECT_POS:
-        //                    ret.Add(obj.ScenePosition); // TODO: Verify that this matches LSL
-        //                    break;
-        //                case LSLConstants.OBJECT_ROT:
-        //                    ret.Add(obj.SceneRotation); // TODO: Verify that this matches LSL
-        //                    break;
-        //                case LSLConstants.OBJECT_VELOCITY:
-        //                    if (obj is IPhysical)
-        //                        ret.Add(((IPhysical)obj).Velocity);
-        //                    else
-        //                        ret.Add(Vector3.Zero);
-        //                    break;
-        //            }
-        //        }
-        //    }
-        //    else
-        //    {
-        //        // TODO: Return status of non LLPrimitive objects
-        //        m_log.Warn("llGetObjectDetails called for non LLPrimitive target in object \"" + script.Host.Name + "\" at " + script.Host.ScenePosition);
-        //    }
+            Primitive.TextureEntryFace teFace = prim.Prim.Textures.GetFace((uint)face);
+            return new Vector3(teFace.OffsetU, teFace.OffsetV, 0f);
+        }
 
-        //    return ret;
-        //}
+        [ScriptMethod]
+        public float llGetTextureRot(IScriptInstance script, int face)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return 0f;
+
+            Primitive.TextureEntryFace teFace = prim.Prim.Textures.GetFace((uint)face);
+            return teFace.Rotation;
+        }
+
+        [ScriptMethod]
+        public Vector3 llGetTextureScale(IScriptInstance script, int face)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return Vector3.Zero;
+
+            Primitive.TextureEntryFace teFace = prim.Prim.Textures.GetFace((uint)face);
+            return new Vector3(teFace.RepeatU, teFace.RepeatV, 0f);
+        }
+
+        [ScriptMethod]
+        public int llGetNumberOfSides(IScriptInstance script)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return 0;
+            return GetNumberOfSides(prim);
+        }
+
+        [ScriptMethod]
+        public object[] llGetObjectDetails(IScriptInstance script, string objectID, object[] details)
+        {
+            List<object> ret = new List<object>();
+            UUID key;
+            ISceneEntity obj;
+
+            if (UUID.TryParse(objectID, out key) && script.Host.Scene.TryGetEntity(key, out obj))
+            {
+                for (int i = 0, len = details.Length; i < len; i++)
+                {
+                    int item = llList2Integer(script, details, i);
+                    switch (item)
+                    {
+                        case LSLConstants.OBJECT_CREATOR:
+                            ret.Add(obj.CreatorID.ToString());
+                            break;
+                        case LSLConstants.OBJECT_DESC:
+                            if (obj is LLPrimitive)
+                                ret.Add(((LLPrimitive)obj).Prim.Properties.Description);
+                            else
+                                ret.Add(String.Empty);
+                            break;
+                        case LSLConstants.OBJECT_GROUP:
+                            ret.Add(obj.GroupID.ToString());
+                            break;
+                        case LSLConstants.OBJECT_NAME:
+                            ret.Add(obj.Name);
+                            break;
+                        case LSLConstants.OBJECT_OWNER:
+                            ret.Add(obj.OwnerID.ToString());
+                            break;
+                        case LSLConstants.OBJECT_POS:
+                            ret.Add(obj.ScenePosition); // TODO: Verify that this matches LSL
+                            break;
+                        case LSLConstants.OBJECT_ROT:
+                            ret.Add(obj.SceneRotation); // TODO: Verify that this matches LSL
+                            break;
+                        case LSLConstants.OBJECT_VELOCITY:
+                            if (obj is IPhysical)
+                                ret.Add(((IPhysical)obj).Velocity);
+                            else
+                                ret.Add(Vector3.Zero);
+                            break;
+                    }
+                }
+            }
+
+            return ret.ToArray();
+        }
 
         [ScriptMethod]
         public string llGetObjectName(IScriptInstance script)
@@ -458,92 +570,28 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public void llSetAlpha(IScriptInstance script, double alpha, int side)
+        public void llSetAlpha(IScriptInstance script, float alpha, int side)
         {
+            script.AddSleepMS(200);
+
             if (script.Host is LLPrimitive)
             {
-                LLPrimitive obj = (LLPrimitive)script.Host;
-                int sides = GetNumberOfSides(obj);
-                float newAlpha = (float)Utils.Clamp(alpha, 0.0, 1.0);
-
-                if (side >= 0 && side < sides)
-                {
-                    // Get or create the requested face and update the alpha
-                    Primitive.TextureEntryFace face = obj.Prim.Textures.CreateFace((uint)side);
-                    Color4 faceColor = face.RGBA;
-                    faceColor.A = newAlpha;
-                    face.RGBA = faceColor;
-
-                    obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
-                    script.AddSleepMS(200);
-
-                    if (m_lslScriptEngine != null)
-                        m_lslScriptEngine.PostObjectEvent(obj.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, new DetectParams[0]);
-                }
-                else if (side == LSLConstants.ALL_SIDES)
-                {
-                    // Change all of the faces
-                    for (uint i = 0; i < sides; i++)
-                    {
-                        Primitive.TextureEntryFace face = obj.Prim.Textures.GetFace(i);
-                        if (face != null)
-                        {
-                            Color4 faceColor = face.RGBA;
-                            faceColor.A = newAlpha;
-                            face.RGBA = faceColor;
-                        }
-                    }
-
-                    obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
-                    script.AddSleepMS(200);
-
-                    if (m_lslScriptEngine != null)
-                        m_lslScriptEngine.PostObjectEvent(obj.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, new DetectParams[0]);
-                }
+                SetAlpha((LLPrimitive)script.Host, alpha, side);
+                if (m_lslScriptEngine != null)
+                    m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, null);
             }
         }
 
         [ScriptMethod]
         public void llSetColor(IScriptInstance script, Vector3 color, int side)
         {
+            script.AddSleepMS(200);
+
             if (script.Host is LLPrimitive)
             {
-                LLPrimitive obj = (LLPrimitive)script.Host;
-                int sides = GetNumberOfSides(obj);
-
-                // Sanitize the color input
-                color.X = Utils.Clamp(color.X, 0.0f, 1.0f);
-                color.Y = Utils.Clamp(color.Y, 0.0f, 1.0f);
-                color.Z = Utils.Clamp(color.Z, 0.0f, 1.0f);
-
-                if (side >= 0 && side < sides)
-                {
-                    // Get or create the requested face and update the color
-                    Primitive.TextureEntryFace face = obj.Prim.Textures.CreateFace((uint)side);
-                    face.RGBA = new Color4(color.X, color.Y, color.Z, face.RGBA.A);
-
-                    obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
-                    script.AddSleepMS(200);
-
-                    if (m_lslScriptEngine != null)
-                        m_lslScriptEngine.PostObjectEvent(obj.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, new DetectParams[0]);
-                }
-                else if (side == LSLConstants.ALL_SIDES)
-                {
-                    // Change all of the faces
-                    for (uint i = 0; i < sides; i++)
-                    {
-                        Primitive.TextureEntryFace face = obj.Prim.Textures.GetFace(i);
-                        if (face != null)
-                            face.RGBA = new Color4(color.X, color.Y, color.Z, face.RGBA.A);
-                    }
-
-                    obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
-                    script.AddSleepMS(200);
-
-                    if (m_lslScriptEngine != null)
-                        m_lslScriptEngine.PostObjectEvent(obj.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, new DetectParams[0]);
-                }
+                SetColor((LLPrimitive)script.Host, color, side);
+                if (m_lslScriptEngine != null)
+                    m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_COLOR }, null);
             }
         }
 
@@ -589,43 +637,67 @@ namespace Simian.Scripting.Linden
             script.AddSleepMS(200);
 
             if (m_lslScriptEngine != null)
-                m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_TEXTURE }, new DetectParams[0]);
+                m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_TEXTURE }, null);
+        }
+
+        [ScriptMethod]
+        public void llScaleTexture(IScriptInstance script, float u, float v, int side)
+        {
+            if (script.Host is LLPrimitive)
+                ScaleTexture(script, (LLPrimitive)script.Host, u, v, side);
+            script.AddSleepMS(200);
+
+            if (m_lslScriptEngine != null)
+                m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_TEXTURE }, null);
+        }
+
+        [ScriptMethod]
+        public void llOffsetTexture(IScriptInstance script, float u, float v, int side)
+        {
+            if (script.Host is LLPrimitive)
+                OffsetTexture(script, (LLPrimitive)script.Host, u, v, side);
+            script.AddSleepMS(200);
+
+            if (m_lslScriptEngine != null)
+                m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_TEXTURE }, null);
+        }
+
+        [ScriptMethod]
+        public void llRotateTexture(IScriptInstance script, float angle, int side)
+        {
+            if (script.Host is LLPrimitive)
+                RotateTexture(script, (LLPrimitive)script.Host, angle, side);
+            script.AddSleepMS(200);
+
+            if (m_lslScriptEngine != null)
+                m_lslScriptEngine.PostObjectEvent(script.Host.ID, "changed", new object[] { LSLConstants.CHANGED_TEXTURE }, null);
         }
 
         [ScriptMethod]
         public void llSetObjectName(IScriptInstance script, string name)
         {
-            script.Host.Name = name;
+            SetObjectName(script.Host, name);
         }
 
         [ScriptMethod]
-        public void llSettObjectDesc(IScriptInstance script, string desc)
+        public void llSetObjectDesc(IScriptInstance script, string desc)
         {
-            if (script.Host is LLPrimitive)
-                ((LLPrimitive)script.Host).Prim.Properties.Description = desc;
-            else
-            {
-                // TODO: Warning
-            }
+            SetObjectDesc(script.Host, desc);
         }
 
-        //[ScriptMethod]
-        //public void llSetPayPrice(IScriptInstance script, int defaultPrice, List<object> buttons)
-        //{
-        //    if (script.Host is LLPrimitive)
-        //    {
-        //        LLPrimitive prim = (LLPrimitive)script.Host;
-        //        prim.PayPrice = defaultPrice;
-        //        prim.PayPriceButtons[0] = buttons.Count > 0 ? buttons.GetIntegerItem(0) : 0;
-        //        prim.PayPriceButtons[1] = buttons.Count > 1 ? buttons.GetIntegerItem(1) : 0;
-        //        prim.PayPriceButtons[2] = buttons.Count > 2 ? buttons.GetIntegerItem(2) : 0;
-        //        prim.PayPriceButtons[3] = buttons.Count > 3 ? buttons.GetIntegerItem(3) : 0;
-        //    }
-        //    else
-        //    {
-        //        // TODO: Warning
-        //    }
-        //}
+        [ScriptMethod]
+        public void llSetPayPrice(IScriptInstance script, int defaultPrice, object[] buttons)
+        {
+            if (script.Host is LLPrimitive)
+            {
+                LLPrimitive prim = (LLPrimitive)script.Host;
+                prim.PayPrice = defaultPrice;
+                prim.PayPriceButtons[0] = llList2Integer(script, buttons, 0);
+                prim.PayPriceButtons[1] = llList2Integer(script, buttons, 1);
+                prim.PayPriceButtons[2] = llList2Integer(script, buttons, 2);
+                prim.PayPriceButtons[3] = llList2Integer(script, buttons, 3);
+            }
+        }
 
         [ScriptMethod]
         public void llSetPos(IScriptInstance script, Vector3 pos)
@@ -644,12 +716,7 @@ namespace Simian.Scripting.Linden
         [ScriptMethod]
         public void llSetScale(IScriptInstance script, Vector3 scale)
         {
-            script.Host.Scale = new Vector3(
-                Utils.Clamp(scale.X, 0.01f, 10f),
-                Utils.Clamp(scale.Y, 0.01f, 10f),
-                Utils.Clamp(scale.Z, 0.01f, 10f));
-
-            script.Host.Scene.EntityAddOrUpdate(this, script.Host, UpdateFlags.Scale, 0);
+            SetScale(script.Host, scale);
             script.AddSleepMS(200);
         }
 
@@ -662,113 +729,93 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public void llSetStatus(IScriptInstance script, int flags, bool enabled)
+        public void llSetRemoteScriptAccessPin(IScriptInstance script, int pin)
         {
-            if (script.Host is LLPrimitive)
-            {
-                LLPrimitive prim = (LLPrimitive)script.Host;
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return;
 
-                UpdateFlags updateFlags = 0;
+            prim.RemoteScriptAccessPIN = pin;
+            script.AddSleepMS(200);
+        }
 
-                if ((flags & LSLConstants.STATUS_CAST_SHADOWS) == LSLConstants.STATUS_CAST_SHADOWS)
-                {
-                    if (enabled)
-                        prim.Prim.Flags |= PrimFlags.CastShadows;
-                    else
-                        prim.Prim.Flags &= ~PrimFlags.CastShadows;
-
-                    updateFlags |= UpdateFlags.FullUpdate;
-                }
-
-                if ((flags & LSLConstants.STATUS_PHANTOM) == LSLConstants.STATUS_PHANTOM)
-                {
-                    if (enabled)
-                        prim.Prim.Flags |= PrimFlags.Phantom;
-                    else
-                        prim.Prim.Flags &= ~PrimFlags.Phantom;
-
-                    updateFlags |= UpdateFlags.PhantomStatus;
-                }
-
-                if ((flags & LSLConstants.STATUS_BLOCK_GRAB) == LSLConstants.STATUS_BLOCK_GRAB)
-                    prim.BlockGrab = enabled;
-
-                if ((flags & LSLConstants.STATUS_DIE_AT_EDGE) == LSLConstants.STATUS_DIE_AT_EDGE)
-                {
-                    if (enabled)
-                        prim.Prim.Flags |= PrimFlags.DieAtEdge;
-                    else
-                        prim.Prim.Flags &= ~PrimFlags.DieAtEdge;
-                }
-
-                if ((flags & LSLConstants.STATUS_PHYSICS) == LSLConstants.STATUS_PHANTOM)
-                {
-                    prim.DynamicsEnabled = enabled;
-
-                    updateFlags |= UpdateFlags.PhysicalStatus;
-                }
-
-                if ((flags & LSLConstants.STATUS_RETURN_AT_EDGE) == LSLConstants.STATUS_RETURN_AT_EDGE)
-                {
-                    if (enabled)
-                        prim.Prim.Flags |= PrimFlags.ReturnAtEdge;
-                    else
-                        prim.Prim.Flags &= ~PrimFlags.ReturnAtEdge;
-                }
-
-                if ((flags & LSLConstants.STATUS_ROTATE_X) == LSLConstants.STATUS_ROTATE_X)
-                    prim.AllowRotateX = enabled;
-
-                if ((flags & LSLConstants.STATUS_ROTATE_Y) == LSLConstants.STATUS_ROTATE_Y)
-                    prim.AllowRotateY = enabled;
-
-                if ((flags & LSLConstants.STATUS_ROTATE_Z) == LSLConstants.STATUS_ROTATE_Z)
-                    prim.AllowRotateZ = enabled;
-
-                if ((flags & LSLConstants.STATUS_SANDBOX) == LSLConstants.STATUS_SANDBOX)
-                {
-                    if (enabled)
-                        prim.Prim.Flags |= PrimFlags.Sandbox;
-                    else
-                        prim.Prim.Flags &= ~PrimFlags.Sandbox;
-                }
-
-                script.Host.Scene.EntityAddOrUpdate(this, prim, updateFlags, 0);
-            }
+        [ScriptMethod]
+        public void llSetStatus(IScriptInstance script, int flags, int enabledInt)
+        {
+            SetStatus(script.Host, flags, enabledInt);
         }
 
         [ScriptMethod]
         public void llSetText(IScriptInstance script, string text, Vector3 color, float alpha)
         {
-            if (script.Host is LLPrimitive)
-            {
-                LLPrimitive prim = (LLPrimitive)script.Host;
-                prim.Prim.Text = text;
-                prim.Prim.TextColor = new Color4(1 - color.X, 1 - color.Y, 1 - color.Z, alpha);
+            SetText(script.Host, text, color, alpha);
+            script.AddSleepMS(200);
+        }
 
-                script.Host.Scene.EntityAddOrUpdate(this, script.Host, UpdateFlags.FullUpdate, 0);
+        [ScriptMethod]
+        public void llSetTouchText(IScriptInstance script, string text)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return;
 
-                script.AddSleepMS(200);
-            }
-            else
-            {
-                // TODO: Warning/support non LLPrimitives
-            }
+            text = text.Replace("\t", "    ");
+            if (text.Length > 9)
+                text = text.Substring(0, 9);
+
+            prim.Prim.Properties.TouchName = text;
+            prim.Scene.EntityAddOrUpdate(this, prim, UpdateFlags.Serialize, 0);
+        }
+
+        [ScriptMethod]
+        public void llSetSitText(IScriptInstance script, string text)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return;
+
+            text = text.Replace("\t", "    ");
+            if (text.Length > 9)
+                text = text.Substring(0, 9);
+
+            prim.Prim.Properties.SitName = text;
+            prim.Scene.EntityAddOrUpdate(this, prim, UpdateFlags.Serialize, 0);
         }
 
         [ScriptMethod]
         public void llSitTarget(IScriptInstance script, Vector3 position, Quaternion rotation)
         {
-            if (script.Host is LLPrimitive)
-            {
-                LLPrimitive prim = (LLPrimitive)script.Host;
-                prim.SitPosition = position;
-                prim.SitRotation = rotation;
-            }
-            else
-            {
-                // TODO: Warning/support non LLPrimitives
-            }
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return;
+
+            prim.SitPosition = position;
+            prim.SitRotation = rotation;
+        }
+
+        [ScriptMethod]
+        public void llSetTextureAnim(IScriptInstance script, int mode, int face, int sizex, int sizey, float start, float length, float rate)
+        {
+            LLPrimitive prim = script.Host as LLPrimitive;
+            if (prim == null)
+                return;
+
+            Primitive.TextureAnimMode animMode = (Primitive.TextureAnimMode)mode;
+
+            if (face == LSLConstants.ALL_SIDES)
+                face = 255;
+
+            Primitive.TextureAnimation animation = new Primitive.TextureAnimation();
+            animation.Flags = animMode;
+            animation.Face = (uint)face;
+            animation.Length = length;
+            animation.Rate = rate;
+            animation.SizeX = (uint)sizex;
+            animation.SizeY = (uint)sizey;
+            animation.Start = start;
+
+            prim.Prim.TextureAnim = animation;
+            prim.Scene.EntityAddOrUpdate(this, prim, 0, (uint)LLUpdateFlags.TextureAnim);
         }
 
         [ScriptMethod]
@@ -781,6 +828,21 @@ namespace Simian.Scripting.Linden
         public void llRezObject(IScriptInstance script, string inventory, Vector3 position, Vector3 vel, Quaternion rot, int param)
         {
             RezObject(script, inventory, position, vel, rot, param, false);
+        }
+
+        [ScriptMethod]
+        public void llMessageLinked(IScriptInstance script, int linknum, int num, string str, string id)
+        {
+            if (m_lslScriptEngine != null)
+            {
+                ISceneEntity[] recipients = GetLinkParts(script.Host, linknum);
+
+                int sender = (script.Host is ILinkable) ? ((ILinkable)script.Host).LinkNumber : 0;
+                object[] eventParams = new object[] { sender, num, str, id };
+
+                for (int i = 0; i < recipients.Length; i++)
+                    m_lslScriptEngine.PostObjectEvent(recipients[i].ID, "link_message", eventParams, null);
+            }
         }
 
         #region Helpers
@@ -814,6 +876,64 @@ namespace Simian.Scripting.Linden
             return new ISceneEntity[] { entity };
         }
 
+        private ISceneEntity[] GetLinkParts(ISceneEntity entity, int linknum)
+        {
+            switch (linknum)
+            {
+                case LSLConstants.LINK_SET:
+                    return GetFullLinkset(entity);
+                case LSLConstants.LINK_ROOT:
+                    return new ISceneEntity[] { GetRootEntity(entity) };
+                case LSLConstants.LINK_ALL_OTHERS:
+                {
+                    ISceneEntity[] all = GetFullLinkset(entity);
+                    ISceneEntity[] others = new ISceneEntity[all.Length - 1];
+                    int j = 0;
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        if (all[i] != entity)
+                            others[j++] = all[i];
+                    }
+                    return others;
+                }
+                case LSLConstants.LINK_ALL_CHILDREN:
+                {
+                    ISceneEntity parent = GetRootEntity(entity);
+                    if (parent is ILinkable)
+                        return ((ILinkable)parent).GetChildren();
+                    return new ISceneEntity[0];
+                }
+                case LSLConstants.LINK_THIS:
+                    return new ISceneEntity[] { entity };
+                default:
+                {
+                    ISceneEntity parent = GetRootEntity(entity);
+                    if (parent is ILinkable)
+                    {
+                        ILinkable linkableParent = (ILinkable)parent;
+                        if (linknum == linkableParent.LinkNumber)
+                        {
+                            return new ISceneEntity[] { parent };
+                        }
+                        else
+                        {
+                            ILinkable[] children = linkableParent.GetChildren();
+                            for (int i = 0; i < children.Length; i++)
+                            {
+                                if (linknum == children[i].LinkNumber)
+                                    return new ISceneEntity[] { children[i] };
+                            }
+                        }
+                    }
+                    else if (linknum == 0)
+                    {
+                        return new ISceneEntity[] { entity };
+                    }
+                    return new ISceneEntity[0];
+                }
+            }
+        }
+
         private void RezObject(IScriptInstance script, string inventory, Vector3 position, Vector3 vel, Quaternion rot, int param, bool atRoot)
         {
             // TODO: Test to make sure this actually rezzes from the root, and get the atRoot param working
@@ -823,7 +943,7 @@ namespace Simian.Scripting.Linden
                 return;
 
             // Sanity check the input rotation
-            if (Double.IsNaN(rot.X) || Double.IsNaN(rot.Y) || Double.IsNaN(rot.Z) || Double.IsNaN(rot.W))
+            if (Single.IsNaN(rot.X) || Single.IsNaN(rot.Y) || Single.IsNaN(rot.Z) || Single.IsNaN(rot.W))
                 return;
 
             // Sanity check the distance, silently fail at > 10m
@@ -886,7 +1006,7 @@ namespace Simian.Scripting.Linden
                             prim.RelativeRotation = rotation;
                             if (prim.Prim.Flags.HasFlag(PrimFlags.Physics))
                             {
-                                prim.FallStart = Environment.TickCount;
+                                prim.FallStart = Util.TickCount();
                                 prim.Velocity = velocity;
                             }
 
@@ -907,7 +1027,7 @@ namespace Simian.Scripting.Linden
 
                     if (obj.Prim.Flags.HasFlag(PrimFlags.Physics))
                     {
-                        obj.FallStart = Environment.TickCount;
+                        obj.FallStart = Util.TickCount();
                         // FIXME: Recoil
                         //llApplyImpulse(script, new lsl_vector(velocity.X * mass, velocity.Y * mass, velocity.Z * mass), 0);
                     }
@@ -920,83 +1040,6 @@ namespace Simian.Scripting.Linden
                 {
                     llSay(script, 0, "Could not find object " + inventory);
                 }
-            }
-        }
-
-        private void SetPos(ISceneEntity obj, Vector3 pos)
-        {
-            // Ignore if this obj is physical
-            if (obj is IPhysical && ((IPhysical)obj).DynamicsEnabled)
-                return;
-
-            // Ignore if distance > 10m (http://wiki.secondlife.com/wiki/LlSetPos)
-            if (Vector3.Distance(obj.RelativePosition, pos) > 10.0f)
-                return;
-
-            if (Vector3.Distance(obj.RelativePosition, pos) <= 10.0f)
-            {
-                // Test if this is a root prim
-                if (!(obj is ILinkable) || ((ILinkable)obj).Parent == null)
-                {
-                    // Get the terrain height at the target position
-                    float terrainHeight = 0.0f;
-                    if (m_terrain != null)
-                        terrainHeight = m_terrain.GetTerrainHeightAt(pos.X, pos.Y);
-
-                    // Clamp the target position
-                    pos.Z = Utils.Clamp(pos.Z, terrainHeight, 4096.0f);
-                }
-            }
-
-            obj.RelativePosition = pos;
-            obj.Scene.EntityAddOrUpdate(this, obj, UpdateFlags.Position, 0);
-        }
-
-        private void SetRot(ISceneEntity obj, Quaternion rot)
-        {
-            if (obj is ILinkable && ((ILinkable)obj).Parent != null)
-            {
-                // This is a child entity. Offset this rotation by the root rotation (http://wiki.secondlife.com/wiki/LlSetRot)
-                ILinkable parent = ((ILinkable)obj).Parent;
-                obj.RelativeRotation = parent.RelativeRotation * rot;
-            }
-            else
-            {
-                obj.RelativeRotation = rot;
-            }
-
-            obj.Scene.EntityAddOrUpdate(this, obj, UpdateFlags.Rotation, 0);
-        }
-
-        private void SetTexture(IScriptInstance script, LLPrimitive obj, string texture, int side)
-        {
-            // "texture" may be an AssetID or the name of a texture in this object's task inventory
-            UUID textureID = KeyOrName(script, texture, AssetType.Texture);
-
-            // Can't set texture to UUID.Zero
-            if (textureID == UUID.Zero)
-                return;
-
-            int sides = GetNumberOfSides(obj);
-            if (side >= 0 && side < sides)
-            {
-                // Change one face
-                Primitive.TextureEntryFace face = obj.Prim.Textures.CreateFace((uint)side);
-                face.TextureID = textureID;
-
-                obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
-            }
-            else if (side == LSLConstants.ALL_SIDES)
-            {
-                // Change all of the faces
-                for (uint i = 0; i < sides; i++)
-                {
-                    Primitive.TextureEntryFace face = obj.Prim.Textures.GetFace(i);
-                    if (face != null)
-                        face.TextureID = textureID;
-                }
-
-                obj.Scene.EntityAddOrUpdate(this, obj, 0, (uint)LLUpdateFlags.Textures);
             }
         }
 

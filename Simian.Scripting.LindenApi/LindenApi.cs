@@ -33,6 +33,8 @@ using OpenMetaverse;
 using Simian.Protocols.Linden;
 using Simian.Protocols.Linden.Packets;
 
+using Sounds = Simian.Protocols.Linden.Packets.Sounds;
+
 namespace Simian.Scripting.Linden
 {
     /// <summary>
@@ -44,31 +46,27 @@ namespace Simian.Scripting.Linden
     {
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
+        private IHttpServer m_httpServer;
         private IAssetClient m_assetClient;
         private ITerrain m_terrain;
         private IPrimMesher m_primMesher;
         private ILSLScriptEngine m_lslScriptEngine;
         private Messaging m_messaging;
+        private Sounds m_sounds;
 
         public void Start(IScene scene)
         {
+            m_httpServer = scene.Simian.GetAppModule<IHttpServer>();
             m_assetClient = scene.Simian.GetAppModule<IAssetClient>();
             m_terrain = scene.GetSceneModule<ITerrain>();
             m_primMesher = scene.GetSceneModule<IPrimMesher>();
             m_lslScriptEngine = scene.GetSceneModule<ILSLScriptEngine>();
             m_messaging = scene.GetSceneModule<Messaging>();
-
-            int implemented = CountMethods();
-            m_log.Debug("Initializing LSL API with " + implemented + "/" + m_methods.Count + " implemented methods");
+            m_sounds = scene.GetSceneModule<Sounds>();
         }
 
         public void Stop()
         {
         }
-
-        //private void ScriptSleep(int ms)
-        //{
-        //    System.Threading.Thread.Sleep(ms);
-        //}
     }
 }

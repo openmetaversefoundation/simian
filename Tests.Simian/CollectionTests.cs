@@ -69,12 +69,12 @@ namespace Tests.Simian
             foreach (KeyValuePair<int, string> kvp in values)
                 eq.Add(kvp.Key, kvp.Value);
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             Assert.IsTrue(finishedEvent.WaitOne(5000), "Timed out with " + (values.Count - count) + " pending events");
 
-            int elapsed = Environment.TickCount - start;
+            int elapsed = Util.TickCount() - start;
             Assert.IsTrue(elapsed >= 3000, "Expected 3000ms to pass, only " + elapsed + " passed");
         }
 
@@ -103,7 +103,7 @@ namespace Tests.Simian
                 }
             );
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             foreach (KeyValuePair<int, string> kvp in values)
@@ -111,7 +111,7 @@ namespace Tests.Simian
 
             Assert.IsTrue(finishedEvent.WaitOne(5000), "Timed out with " + (values.Count - count) + " pending events");
 
-            int elapsed = Environment.TickCount - start;
+            int elapsed = Util.TickCount() - start;
             Assert.IsTrue(elapsed >= 3000, "Expected 3000ms to pass, only " + elapsed + " passed");
         }
 
@@ -181,7 +181,7 @@ namespace Tests.Simian
                 }
             );
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             foreach (KeyValuePair<int, string> kvp in values)
@@ -219,7 +219,7 @@ namespace Tests.Simian
                 }
             );
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             foreach (KeyValuePair<int, string> kvp in values)
@@ -227,7 +227,7 @@ namespace Tests.Simian
 
             Assert.IsTrue(finishedEvent.WaitOne(5000), "Timed out with " + (values.Count - count) + " pending events");
 
-            int elapsed = Environment.TickCount - start;
+            int elapsed = Util.TickCount() - start;
             Assert.IsTrue(elapsed >= 3000, "Expected 3000ms to pass, only " + elapsed + " passed");
         }
 
@@ -256,7 +256,7 @@ namespace Tests.Simian
                 }
             );
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             foreach (KeyValuePair<int, string> kvp in values)
@@ -264,7 +264,7 @@ namespace Tests.Simian
 
             Assert.IsTrue(finishedEvent.WaitOne(5000), "Timed out with " + (values.Count - count) + " pending events");
 
-            int elapsed = Environment.TickCount - start;
+            int elapsed = Util.TickCount() - start;
             Assert.IsTrue(elapsed >= 3000, "Expected 3000ms to pass, only " + elapsed + " passed");
         }
 
@@ -295,7 +295,7 @@ namespace Tests.Simian
                 }
             );
 
-            int start = Environment.TickCount;
+            int start = Util.TickCount();
             eq.Start();
 
             foreach (KeyValuePair<int, string> kvp in values)
@@ -303,7 +303,7 @@ namespace Tests.Simian
 
             Assert.IsTrue(finishedEvent.WaitOne(4000), "Timed out with " + (values.Count - count) + " pending events");
 
-            int elapsed = Environment.TickCount - start;
+            int elapsed = Util.TickCount() - start;
             Assert.IsTrue(elapsed >= 2000, "Expected 2000ms to pass, only " + elapsed + " passed");
         }
 

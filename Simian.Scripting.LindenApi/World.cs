@@ -68,6 +68,14 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
+        public string llGetSimulatorHostname(IScriptInstance script)
+        {
+            if (m_httpServer == null)
+                return System.Net.Dns.GetHostName();
+            return m_httpServer.HttpAddress.Host;
+        }
+
+        [ScriptMethod]
         public string llKey2Name(IScriptInstance script, string id)
         {
             ISceneEntity entity;
@@ -193,7 +201,7 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public double llGround(IScriptInstance script, Vector3 offset)
+        public float llGround(IScriptInstance script, Vector3 offset)
         {
             Vector3 pos = script.Host.ScenePosition + offset;
 
@@ -214,7 +222,7 @@ namespace Simian.Scripting.Linden
             double ydiff = pos.Y - Math.Floor(pos.Y);
 
             // Use the equation of the tangent plane to adjust the height to account for slope
-            return (((normal.X * xdiff) + (normal.Y * ydiff)) / (normal.Z  * -1f)) + baseheight;
+            return (float)(((normal.X * xdiff) + (normal.Y * ydiff)) / (normal.Z  * -1f)) + baseheight;
         }
 
         [ScriptMethod]

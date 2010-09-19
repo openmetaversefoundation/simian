@@ -814,6 +814,8 @@ namespace Simian.Protocols.Linden.Packets
         {
             const int LAND_BLOCKS_PER_PACKET = 1024;
 
+            if (m_udp == null)
+                return;
             if (!(presence is LLAgent) || presence.InterestList == null)
                 return;
             LLAgent agent = (LLAgent)presence;

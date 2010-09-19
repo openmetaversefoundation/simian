@@ -487,7 +487,7 @@ namespace Simian.Protocols.Linden
             RTO = m_defaultRTO;
 
             // Initialize this to a sane value to prevent early disconnects
-            TickLastPacketReceived = Environment.TickCount & Int32.MaxValue;
+            TickLastPacketReceived = Util.TickCount();
 
             IsConnected = true;
         }
@@ -947,7 +947,7 @@ namespace Simian.Protocols.Linden
         /// for</param>
         private void BeginFireQueueEmpty(ThrottleCategoryFlags categories)
         {
-            if (m_nextOnQueueEmpty != 0 && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
+            if (m_nextOnQueueEmpty != 0 && Util.TickCount() >= m_nextOnQueueEmpty)
             {
                 // Use a value of 0 to signal that FireQueueEmpty is running
                 m_nextOnQueueEmpty = 0;
@@ -969,8 +969,8 @@ namespace Simian.Protocols.Linden
             const int EVENTS_PER_CALLBACK = 50;
 
             ThrottleCategoryFlags categories = (ThrottleCategoryFlags)o;
-            
-            int start = Environment.TickCount & Int32.MaxValue;
+
+            int start = Util.TickCount();
 
             // Dequeue a fixed number of events from the interest list
             m_interestList.DequeueEvents(EVENTS_PER_CALLBACK);

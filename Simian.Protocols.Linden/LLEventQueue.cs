@@ -111,7 +111,7 @@ namespace Simian.Protocols.Linden
                     eventsToSend = new List<LLEventQueueEvent>();
                     eventsToSend.Add(eventQueueEvent);
 
-                    int start = Environment.TickCount & Int32.MaxValue;
+                    int start = Util.TickCount();
                     int batchMsPassed = 0;
 
                     // Wait batchWaitMS milliseconds looking for more events,
@@ -121,7 +121,7 @@ namespace Simian.Protocols.Linden
                         if (EventQueue.Dequeue(batchWaitMS - batchMsPassed, ref eventQueueEvent) && eventQueueEvent != null)
                             eventsToSend.Add(eventQueueEvent);
 
-                        batchMsPassed = (Environment.TickCount & Int32.MaxValue) - start;
+                        batchMsPassed = Util.TickCount() - start;
                     }
                 }
 

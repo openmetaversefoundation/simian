@@ -121,6 +121,8 @@ namespace Simian.Protocols.Linden
         public bool AllowRotateZ = true;
         /// <summary>Represents STATUS_BLOCK_GRAB. If true, a physical object can not be manually stopped or dragged around</summary>
         public bool BlockGrab;
+        /// <summary>Personal Identification Number to allow scripts in other prims to load scripts into this prim</summary>
+        public int RemoteScriptAccessPIN;
         /// <summary>Default amount set by llSetPayPrice</summary>
         public int PayPrice;
         /// <summary>Four button amounts set by llSetPayPrice (Default values are 1, 5, 10, and 20)</summary>
@@ -758,6 +760,7 @@ namespace Simian.Protocols.Linden
             map["before_attachment_rotation"] = OSD.FromQuaternion(BeforeAttachmentRotation);
             map["rotation_axis"] = OSD.FromVector3(m_rotationAxis);
             map["link_number"] = OSD.FromInteger(m_linkNumber);
+            map["remote_script_access_pin"] = OSD.FromInteger(RemoteScriptAccessPIN);
             map["inventory"] = OSD.FromString(Inventory.GetTaskInventoryAsset());
 
             OSDArray buttons = new OSDArray { 
@@ -912,6 +915,7 @@ namespace Simian.Protocols.Linden
             obj.BeforeAttachmentRotation = map["before_attachment_rotation"].AsQuaternion();
             obj.RotationAxis = map["rotation_axis"].AsVector3();
             obj.LinkNumber = map["link_number"].AsInteger();
+            obj.RemoteScriptAccessPIN = map["remote_script_access_pin"].AsInteger();
             obj.Inventory.FromTaskInventoryAsset(map["inventory"].AsString());
 
             OSDArray buttons = map["pay_price_buttons"] as OSDArray;

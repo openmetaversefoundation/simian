@@ -277,9 +277,12 @@ namespace Simian.Scripting.Linden
         public const int PRIM_FULLBRIGHT = 20;
         public const int PRIM_FLEXIBLE = 21;
         public const int PRIM_TEXGEN = 22;
-        public const int PRIM_CAST_SHADOWS = 24; // Not implemented, here for completeness sake
-        public const int PRIM_POINT_LIGHT = 23; // Huh?
+        public const int PRIM_CAST_SHADOWS = 24;
+        public const int PRIM_POINT_LIGHT = 23;
         public const int PRIM_GLOW = 25;
+        public const int PRIM_TEXT = 26;
+        public const int PRIM_NAME = 27;
+        public const int PRIM_DESC = 28;
         public const int PRIM_TEXGEN_DEFAULT = 0;
         public const int PRIM_TEXGEN_PLANAR = 1;
 

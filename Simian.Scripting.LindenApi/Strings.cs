@@ -234,5 +234,31 @@ namespace Simian.Scripting.Linden
         {
             return Utils.MD5String(src + ":" + nonce);
         }
+
+        [ScriptMethod]
+        public string llEscapeURL(IScriptInstance script, string url)
+        {
+            try
+            {
+                return Uri.EscapeDataString(url);
+            }
+            catch (Exception ex)
+            {
+                return "llEscapeURL: " + ex.Message;
+            }
+        }
+
+        [ScriptMethod]
+        public string llUnescapeURL(IScriptInstance script, string url)
+        {
+            try
+            {
+                return Uri.UnescapeDataString(url);
+            }
+            catch (Exception ex)
+            {
+                return "llEscapeURL: " + ex.Message;
+            }
+        }
     }
 }

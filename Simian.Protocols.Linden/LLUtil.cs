@@ -516,7 +516,7 @@ namespace Simian.Protocols.Linden
             if (obj.Phantom) prim.Flags |= PrimFlags.Phantom;
             prim.Position = obj.Position;
             prim.RegionHandle = Util.PositionToRegionHandle(scene.MinPosition);
-            //obj.RemoteScriptAccessPIN;
+            llprim.RemoteScriptAccessPIN = obj.RemoteScriptAccessPIN;
             if (obj.ReturnAtEdge) prim.Flags |= PrimFlags.ReturnAtEdge;
             //obj.RezDate;
             prim.Rotation = obj.Rotation;

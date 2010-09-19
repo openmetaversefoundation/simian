@@ -641,7 +641,7 @@ namespace Simian.Protocols.Linden.Packets
                     {
                         IPhysical physical = (IPhysical)entity;
                         physical.Frozen = false;
-                        physical.FallStart = Environment.TickCount;
+                        physical.FallStart = Util.TickCount();
                     }
 
                     //m_log.Debug("Deselecting object " + obj.Prim.LocalID);

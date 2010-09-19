@@ -152,6 +152,15 @@ namespace Simian
         }
 
         /// <summary>
+        /// Returns the environment tick count as an always positive number
+        /// </summary>
+        /// <returns>Environment tick count as an always positive number</returns>
+        public static int TickCount()
+        {
+            return Environment.TickCount & Int32.MaxValue;
+        }
+
+        /// <summary>
         /// Gets the name of the directory where the current running executable
         /// is located
         /// </summary>

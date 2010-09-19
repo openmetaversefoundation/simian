@@ -99,10 +99,10 @@ namespace Simian
             TickCountResolution = 0f;
             for (int i = 0; i < 5; i++)
             {
-                int start = Environment.TickCount;
+                int start = Util.TickCount();
                 int now = start;
                 while (now == start)
-                    now = Environment.TickCount;
+                    now = Util.TickCount();
                 TickCountResolution += (float)(now - start) * 0.2f;
             }
             m_log.Debug("Average Environment.TickCount resolution: " + TickCountResolution + "ms");

@@ -109,7 +109,7 @@ namespace Simian.Protocols.Linden
 
             if (m_packets.Count > 0)
             {
-                int now = Environment.TickCount & Int32.MaxValue;
+                int now = Util.TickCount();
 
                 foreach (OutgoingPacket packet in m_packets.Values)
                 {

@@ -42,9 +42,9 @@ namespace Simian
     /// </summary>
     public sealed class ApiMethod
     {
-        /// <summary>An instance of the class that the API call is contained in,
-        /// or null if the API call is a static method</summary>
-        public readonly object ParentClass;
+        /// <summary>An instance of the API class containing this method, or 
+        /// null if the API call is a static method</summary>
+        public readonly IScriptApi Parent;
         /// <summary>Reflection information for the API call</summary>
         public readonly MethodInfo MethodInfo;
         /// <summary>Generated code to quickly call the API method</summary>
@@ -53,13 +53,13 @@ namespace Simian
         /// <summary>
         /// Default constructor
         /// </summary>
-        /// <param name="parentClass">An instance of the class that the API 
-        /// call is contained in, or null if the API call is a static method</param>
+        /// <param name="parent">An instance of the API class containing this 
+        /// method, or null if the API call is a static method</param>
         /// <param name="methodInfo">A reference to type information for the
         /// API call</param>
-        public ApiMethod(object parentClass, MethodInfo methodInfo)
+        public ApiMethod(IScriptApi parent, MethodInfo methodInfo)
         {
-            ParentClass = parentClass;
+            Parent = parent;
             MethodInfo = methodInfo;
             Invoker = FastInvoke.Create(methodInfo);
         }
@@ -71,7 +71,7 @@ namespace Simian
         /// <returns>The return value of the API call</returns>
         public object Call(object[] args)
         {
-            return Invoker(ParentClass, args);
+            return Invoker(Parent, args);
         }
     }
 }

@@ -35,55 +35,55 @@ namespace Simian.Scripting.Linden
     public partial class LindenApi : ISceneModule, IScriptApi
     {
         [ScriptMethod]
-        public double llSin(IScriptInstance script, double theta)
+        public float llSin(IScriptInstance script, float theta)
         {
-            return Math.Sin(theta);
+            return (float)Math.Sin(theta);
         }
 
         [ScriptMethod]
-        public double llCos(IScriptInstance script, double theta)
+        public float llCos(IScriptInstance script, float theta)
         {
-            return Math.Cos(theta);
+            return (float)Math.Cos(theta);
         }
 
         [ScriptMethod]
-        public double llTan(IScriptInstance script, double theta)
+        public float llTan(IScriptInstance script, float theta)
         {
-            return Math.Tan(theta);
+            return (float)Math.Tan(theta);
         }
 
         [ScriptMethod]
-        public double llAtan2(IScriptInstance script, double y, double x)
+        public float llAtan2(IScriptInstance script, float y, float x)
         {
-            return Math.Atan2(y, x);
+            return (float)Math.Atan2(y, x);
         }
 
         [ScriptMethod]
-        public double llLog(double val)
+        public float llLog(float val)
         {
-            return (double)Math.Log(val);
+            return (float)Math.Log(val);
         }
 
         [ScriptMethod]
-        public double llLog10(double val)
+        public float llLog10(float val)
         {
-            return (double)Math.Log10(val);
+            return (float)Math.Log10(val);
         }
 
         [ScriptMethod]
-        public double llSqrt(IScriptInstance script, double val)
+        public float llSqrt(IScriptInstance script, float val)
         {
-            return Math.Sqrt(val);
+            return (float)Math.Sqrt(val);
         }
 
         [ScriptMethod]
-        public double llPow(IScriptInstance script, double base_, double exponent)
+        public float llPow(IScriptInstance script, float base_, float exponent)
         {
-            return Math.Pow(base_, exponent);
+            return (float)Math.Pow(base_, exponent);
         }
 
         [ScriptMethod]
-        public double llModPow(int a, int b, int c)
+        public float llModPow(int a, int b, int c)
         {
             return (float)Math.Pow(a, b) % c;
         }
@@ -95,37 +95,37 @@ namespace Simian.Scripting.Linden
         }
 
         [ScriptMethod]
-        public double llFabs(IScriptInstance script, double val)
+        public float llFabs(IScriptInstance script, float val)
         {
             return Math.Abs(val);
         }
 
         [ScriptMethod]
-        public double llFrand(IScriptInstance script, double mag)
+        public float llFrand(IScriptInstance script, float mag)
         {
-            return Utils.RandomDouble() * (mag - Double.Epsilon);
+            return (float)Utils.RandomDouble() * (mag - Single.Epsilon);
         }
 
         [ScriptMethod]
-        public double llFloor(IScriptInstance script, double val)
+        public float llFloor(IScriptInstance script, float val)
         {
-            return Math.Floor(val);
+            return (float)Math.Floor(val);
         }
 
         [ScriptMethod]
-        public double llCeil(IScriptInstance script, double val)
+        public float llCeil(IScriptInstance script, float val)
         {
-            return Math.Ceiling(val);
+            return (float)Math.Ceiling(val);
         }
 
         [ScriptMethod]
-        public double llRound(IScriptInstance script, double val)
+        public float llRound(IScriptInstance script, float val)
         {
-            return Math.Round(val);
+            return (float)Math.Round(val);
         }
 
         [ScriptMethod]
-        public double llVecMag(IScriptInstance script, Vector3 vec)
+        public float llVecMag(IScriptInstance script, Vector3 vec)
         {
             return vec.Length();
         }
@@ -134,12 +134,12 @@ namespace Simian.Scripting.Linden
         public Vector3 llVecNorm(IScriptInstance script, Vector3 vec)
         {
             // NOTE: Emulates behavior reported in https://jira.secondlife.com/browse/SVC-4711
-            double mag = vec.Length();
+            float mag = vec.Length();
             return (mag != 0.0d) ? vec / (float)mag : Vector3.Zero;
         }
 
         [ScriptMethod]
-        public double llVecDist(IScriptInstance script, Vector3 vec_a, Vector3 vec_b)
+        public float llVecDist(IScriptInstance script, Vector3 vec_a, Vector3 vec_b)
         {
             return Vector3.Distance(vec_a, vec_b);
         }
@@ -152,32 +152,32 @@ namespace Simian.Scripting.Linden
             // This implementation is from http://lslwiki.net/lslwiki/wakka.php?wakka=LibraryRotationFunctions
             Quaternion t = new Quaternion(quat.X * quat.X, quat.Y * quat.Y, quat.Z * quat.Z, quat.W * quat.W);
             
-            double m = (t.X + t.Y + t.Z + t.W);
-            if (m == 0.0) return Vector3.Zero;
+            float m = (t.X + t.Y + t.Z + t.W);
+            if (m == 0.0f) return Vector3.Zero;
 
-            double n = 2.0 * (quat.Y * quat.W + quat.X * quat.Z);
-            double p = m * m - n * n;
+            float n = 2.0f * (quat.Y * quat.W + quat.X * quat.Z);
+            float p = m * m - n * n;
 
-            if (p > 0.0)
+            if (p > 0.0f)
             {
                 return new Vector3(
-                    (float)NormalizeAngle(Math.Atan2(2.0 * (quat.X * quat.W - quat.Y * quat.Z), (-t.X - t.Y + t.Z + t.W))),
-                    (float)NormalizeAngle(Math.Atan2(n, Math.Sqrt(p))),
-                    (float)NormalizeAngle(Math.Atan2(2.0 * (quat.Z * quat.W - quat.X * quat.Y), (t.X - t.Y - t.Z + t.W))));
+                    (float)NormalizeAngle((float)Math.Atan2(2.0f * (quat.X * quat.W - quat.Y * quat.Z), (-t.X - t.Y + t.Z + t.W))),
+                    (float)NormalizeAngle((float)Math.Atan2(n, Math.Sqrt(p))),
+                    (float)NormalizeAngle((float)Math.Atan2(2.0f * (quat.Z * quat.W - quat.X * quat.Y), (t.X - t.Y - t.Z + t.W))));
             }
-            else if (n > 0.0)
+            else if (n > 0.0f)
             {
                 return new Vector3(
                     0.0f,
-                    (float)(Math.PI * 0.5),
-                    (float)NormalizeAngle(Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
+                    (float)(Math.PI * 0.5f),
+                    (float)NormalizeAngle((float)Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
             }
             else
             {
                 return new Vector3(
                     0.0f,
-                    (float)(-Math.PI * 0.5),
-                    (float)NormalizeAngle(Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
+                    (float)(-Math.PI * 0.5f),
+                    (float)NormalizeAngle((float)Math.Atan2((quat.Z * quat.W + quat.X * quat.Y), 0.5 - t.X - t.Z)));
             }
         }
 
@@ -190,12 +190,12 @@ namespace Simian.Scripting.Linden
         [ScriptMethod]
         public Quaternion llAxes2Rot(IScriptInstance script, Vector3 fwd, Vector3 left, Vector3 up)
         {
-            double s;
-            double tr = fwd.X + left.Y + up.Z + 1.0;
+            float s;
+            float tr = fwd.X + left.Y + up.Z + 1.0f;
 
             if (tr >= 1.0)
             {
-                s = 0.5 / Math.Sqrt(tr);
+                s = 0.5f / (float)Math.Sqrt(tr);
                 return new Quaternion(
                     (float)((left.Z - up.Y) * s),
                     (float)((up.X - fwd.Z) * s),
@@ -204,13 +204,13 @@ namespace Simian.Scripting.Linden
             }
             else
             {
-                double max = (left.Y > up.Z) ? left.Y : up.Z;
+                float max = (left.Y > up.Z) ? left.Y : up.Z;
 
                 if (max < fwd.X)
                 {
-                    s = Math.Sqrt(fwd.X - (left.Y + up.Z) + 1.0);
-                    double x = s * 0.5;
-                    s = 0.5 / s;
+                    s = (float)Math.Sqrt(fwd.X - (left.Y + up.Z) + 1.0f);
+                    float x = s * 0.5f;
+                    s = 0.5f / s;
                     return new Quaternion(
                         (float)x,
                         (float)((fwd.Y + left.X) * s),
@@ -219,9 +219,9 @@ namespace Simian.Scripting.Linden
                 }
                 else if (max == left.Y)
                 {
-                    s = Math.Sqrt(left.Y - (up.Z + fwd.X) + 1.0);
-                    double y = s * 0.5;
-                    s = 0.5 / s;
+                    s = (float)Math.Sqrt(left.Y - (up.Z + fwd.X) + 1.0);
+                    float y = s * 0.5f;
+                    s = 0.5f / s;
                     return new Quaternion(
                         (float)((fwd.Y + left.X) * s),
                         (float)y,
@@ -230,9 +230,9 @@ namespace Simian.Scripting.Linden
                 }
                 else
                 {
-                    s = Math.Sqrt(up.Z - (fwd.X + left.Y) + 1.0);
-                    double z = s * 0.5;
-                    s = 0.5 / s;
+                    s = (float)Math.Sqrt(up.Z - (fwd.X + left.Y) + 1.0);
+                    float z = s * 0.5f;
+                    s = 0.5f / s;
                     return new Quaternion(
                         (float)((up.X + fwd.Z) * s),
                         (float)((left.Z + up.Y) * s),
@@ -266,10 +266,10 @@ namespace Simian.Scripting.Linden
             start = Vector3.Normalize(start);
             end = Vector3.Normalize(end);
 
-            double dotProduct = Vector3.Dot(start, end);
+            float dotProduct = Vector3.Dot(start, end);
             Vector3 crossProduct = Vector3.Cross(start, end);
-            double magProduct = Vector3.Mag(start) * Vector3.Mag(end);
-            double angle = Math.Acos(dotProduct / magProduct);
+            float magProduct = Vector3.Mag(start) * Vector3.Mag(end);
+            float angle = (float)Math.Acos(dotProduct / magProduct);
             Vector3 axis = Vector3.Normalize(crossProduct);
             float s = (float)Math.Sin(angle / 2.0);
 
@@ -291,16 +291,16 @@ namespace Simian.Scripting.Linden
         /// </summary>
         /// <param name="angle">Angle to normalize, in radians</param>
         /// <returns>Normalized angle, in radians</returns>
-        private double NormalizeAngle(double angle)
+        private float NormalizeAngle(float angle)
         {
-            if (angle > -Math.PI && angle < Math.PI)
+            if (angle > -Utils.PI && angle < Utils.PI)
                 return angle;
 
             int numPis = (int)(Math.PI / angle);
-            double remainder = angle - Math.PI * numPis;
+            float remainder = angle - Utils.PI * numPis;
 
             if (numPis % 2 == 1)
-                return Math.PI - angle;
+                return Utils.PI - angle;
             else
                return remainder;
         }

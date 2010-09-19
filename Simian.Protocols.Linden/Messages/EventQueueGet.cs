@@ -143,7 +143,7 @@ namespace Simian.Protocols.Linden
                         agent.EventQueue.Context = context;
                         agent.EventQueue.Request = request;
                         agent.EventQueue.Response = response;
-                        agent.EventQueue.StartTime = Environment.TickCount & Int32.MaxValue;
+                        agent.EventQueue.StartTime = Util.TickCount();
                         agent.EventQueue.ConnectionOpen = true;
 
                         // ACK sanity checking
@@ -197,7 +197,7 @@ namespace Simian.Protocols.Linden
                             else
                             {
                                 // Check for a timeout
-                                int elapsed = (Environment.TickCount & Int32.MaxValue) - agent.EventQueue.StartTime;
+                                int elapsed = Util.TickCount() - agent.EventQueue.StartTime;
                                 if (elapsed >= CONNECTION_TIMEOUT)
                                 {
                                     //m_log.DebugFormat("{0}ms passed without an event, timing out the event queue", elapsed);

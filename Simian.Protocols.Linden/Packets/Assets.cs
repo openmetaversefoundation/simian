@@ -213,10 +213,17 @@ namespace Simian.Protocols.Linden.Packets
                     return;
                 }
 
-                // Store the asset
-                m_log.DebugFormat("Storing uploaded asset {0} ({1})", assetID, asset.ContentType);
-                if (!m_assets.StoreAsset(asset))
-                    m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", assetID, asset.ContentType);
+                if (type != AssetType.LSLBytecode)
+                {
+                    // Store the asset
+                    m_log.DebugFormat("Storing uploaded asset {0} ({1})", assetID, asset.ContentType);
+                    if (!m_assets.StoreAsset(asset))
+                        m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", assetID, asset.ContentType);
+                }
+                else
+                {
+                    m_log.Debug("Ignoring LSL bytecode upload " + assetID);
+                }
 
                 // Send a success response
                 AssetUploadCompletePacket complete = new AssetUploadCompletePacket();
@@ -301,13 +308,20 @@ namespace Simian.Protocols.Linden.Packets
                     if (lastPacket)
                     {
                         // Asset upload finished
-                        m_log.DebugFormat("Completed Xfer upload of asset {0} ({1})", asset.ID, asset.ContentType);
                         lock (currentUploads)
                             currentUploads.Remove(xfer.XferID.ID);
 
-                        // Store the uploaded asset
-                        if (!m_assets.StoreAsset(asset))
-                            m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
+                        if (type != AssetType.LSLBytecode)
+                        {
+                            // Store the uploaded asset
+                            m_log.DebugFormat("Storing uploaded asset {0} ({1})", asset.ID, asset.ContentType);
+                            if (!m_assets.StoreAsset(asset))
+                                m_log.ErrorFormat("Failed to store uploaded asset {0} ({1})", asset.ID, asset.ContentType);
+                        }
+                        else
+                        {
+                            m_log.Debug("Ignoring LSL bytecode upload " + asset.ID);
+                        }
 
                         AssetUploadCompletePacket complete = new AssetUploadCompletePacket();
                         complete.AssetBlock.Success = true;

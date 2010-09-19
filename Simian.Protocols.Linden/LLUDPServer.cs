@@ -563,7 +563,7 @@ namespace Simian.Protocols.Linden
             const int AGENT_TIMEOUT_MS = 1000 * 60;
 
             // Disconnect an agent if no packets are received for some time
-            if ((Environment.TickCount & Int32.MaxValue) - agent.TickLastPacketReceived > AGENT_TIMEOUT_MS)
+            if (Util.TickCount() - agent.TickLastPacketReceived > AGENT_TIMEOUT_MS)
             {
                 m_log.Warn("Ack timeout, disconnecting " + agent.ID);
 
@@ -785,7 +785,7 @@ namespace Simian.Protocols.Linden
             Send(buffer);
 
             // Keep track of when this packet was sent out (right now)
-            outgoingPacket.TickCount = Environment.TickCount & Int32.MaxValue;
+            outgoingPacket.TickCount = Util.TickCount();
 
             //m_log.Debug("Sent " + outgoingPacket.Buffer.DataLength + " byte " + outgoingPacket.Category + " packet");
         }
@@ -800,7 +800,7 @@ namespace Simian.Protocols.Linden
             int packetEnd = buffer.DataLength - 1;
             IPEndPoint address = (IPEndPoint)buffer.RemoteEndPoint;
 
-            int now = Environment.TickCount & Int32.MaxValue;
+            int now = Util.TickCount();
 
             #region Decoding
 
@@ -1019,7 +1019,7 @@ namespace Simian.Protocols.Linden
                 try
                 {
                     // Time keeping
-                    int now = Environment.TickCount & Int32.MaxValue;
+                    int now = Util.TickCount();
                     int elapsed = now - m_tickLastOutgoingPacketHandler;
                     m_tickLastOutgoingPacketHandler = now;
 
@@ -1087,7 +1087,7 @@ namespace Simian.Protocols.Linden
                         LLAgent agent = incomingPacket.Agent;
 
                         // Record the time we started processing this packet
-                        incomingPacket.StartedHandling = Environment.TickCount & Int32.MaxValue;
+                        incomingPacket.StartedHandling = Util.TickCount();
 
                         // Sanity check
                         if (packet == null || agent == null)

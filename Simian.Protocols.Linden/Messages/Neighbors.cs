@@ -450,7 +450,7 @@ namespace Simian.Protocols.Linden
                     int tickCount;
                     if (m_borderCrossThrottles.TryGetValue(entity.ID, out tickCount))
                     {
-                        int now = Environment.TickCount & Int32.MaxValue;
+                        int now = Util.TickCount();
                         if (tickCount > now)
                             borderCrossThrottled = true;
                         else
@@ -476,7 +476,7 @@ namespace Simian.Protocols.Linden
                     {
                         // Add a throttle for border crossing this entity
                         lock (m_borderCrossThrottles)
-                            m_borderCrossThrottles[entity.ID] = (Environment.TickCount & Int32.MaxValue) + BORDER_CROSS_THROTTLE_MS;
+                            m_borderCrossThrottles[entity.ID] = Util.TickCount() + BORDER_CROSS_THROTTLE_MS;
                     }
                 }
                 else if (entity is IScenePresence && CheckForCameraMovement(entity))
