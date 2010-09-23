@@ -621,7 +621,12 @@ namespace Simian.Protocols.Linden
             return 0;
         }
 
-        public PhysicsHull GetPhysicsHull()
+        public BasicMesh GetBasicMesh()
+        {
+            return null;
+        }
+
+        public ConvexHullSet GetConvexHulls()
         {
             return null;
         }

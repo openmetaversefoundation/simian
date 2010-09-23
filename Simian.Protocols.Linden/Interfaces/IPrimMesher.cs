@@ -32,7 +32,8 @@ namespace Simian.Protocols.Linden
 {
     public interface IPrimMesher
     {
-        PhysicsMesh GetPhysicsMesh(LLPrimitive prim);
+        BasicMesh GetBasicMesh(LLPrimitive prim);
+        ConvexHullSet GetConvexHulls(LLPrimitive prim);
         RenderingMesh GetRenderingMesh(LLPrimitive prim, DetailLevel lod);
     }
 }

@@ -358,15 +358,13 @@ namespace Simian.Scripting.Linden
             Vector3 center = Vector3.Zero;
             float volume = 0.0f;
 
-            // TODO: Does this formula work for multiple meshes?
-            // TODO: This is a very expensive algorithm (generates a mesh for every prim in the 
-            // linkset and iterates over every triangle). Doesn't the physics engine already have 
-            // this information?
             foreach (ISceneEntity entity in linkset)
             {
                 if (entity is LLPrimitive)
                 {
-                    PhysicsMesh mesh = m_primMesher.GetPhysicsMesh((LLPrimitive)entity);
+                    LLPrimitive prim = (LLPrimitive)entity;
+
+                    BasicMesh mesh = prim.GetBasicMesh();
 
                     // Formula adapted from Stan Melax's algorithm: <http://www.melax.com/volint.html>
                     for (int i = 0; i < mesh.Indices.Length; i += 3)

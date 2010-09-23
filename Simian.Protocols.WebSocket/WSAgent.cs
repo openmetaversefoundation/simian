@@ -376,7 +376,12 @@ namespace Simian.Protocols.WebSocket
             return 0;
         }
 
-        public PhysicsHull GetPhysicsHull()
+        public BasicMesh GetBasicMesh()
+        {
+            return null;
+        }
+
+        public ConvexHullSet GetConvexHulls()
         {
             return null;
         }

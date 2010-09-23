@@ -37,8 +37,6 @@ namespace Tests.Simian
     [TestFixture]
     public class CollectionTests
     {
-        Random rng = new Random();
-
         #region ThrottledQueue
 
         [Test]

@@ -46,14 +46,12 @@ namespace Simian.Renderer.Warp3D
         private static readonly ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IAssetClient m_assetClient;
-        private MeshCache m_meshCache;
         private Dictionary<UUID, Color4> m_colors = new Dictionary<UUID, Color4>();
         private bool m_useAntiAliasing = true; // TODO: Make this a config option
 
         public bool Start(Simian simian)
         {
             m_assetClient = simian.GetAppModule<IAssetClient>();
-            m_meshCache = simian.GetAppModule<MeshCache>();
 
             return true;
         }
@@ -252,20 +250,7 @@ namespace Simian.Renderer.Warp3D
             DetailLevel lod = DetailLevel.Medium;
 
             ulong meshKey = prim.GetPhysicsKey();
-
-            if (m_meshCache != null)
-            {
-                if (!m_meshCache.TryGetRenderingMesh(meshKey, lod, out renderMesh))
-                {
-                    renderMesh = primMesher.GetRenderingMesh(prim, lod);
-                    if (renderMesh != null)
-                        m_meshCache.StoreRenderingMesh(meshKey, lod, renderMesh);
-                }
-            }
-            else
-            {
-                renderMesh = primMesher.GetRenderingMesh(prim, lod);
-            }
+            renderMesh = primMesher.GetRenderingMesh(prim, lod);
 
             if (renderMesh == null)
                 return;

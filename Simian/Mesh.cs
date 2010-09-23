@@ -50,14 +50,13 @@ namespace Simian
         Box,
         Cone,
         Cylinder,
-        Mesh,
         Sphere,
         ConvexHull,
     }
 
     #endregion Enums
 
-    #region Rendering Mesh Classes
+    #region Mesh / Convex Hull Classes
 
     [StructLayout(LayoutKind.Explicit)]
     public struct Vertex
@@ -96,7 +95,7 @@ namespace Simian
                 length += 2; // Vertex count
                 length += Faces[i].Vertices.Length * Vertex.SIZE_OF;
                 length += 2; // Index count
-                length += Faces[i].Indices.Length * sizeof(ushort);
+                length += Faces[i].Indices.Length * 2;
             }
 
             byte[] data = new byte[length];
@@ -175,8 +174,8 @@ namespace Simian
                 pos += 2;
 
                 face.Indices = new ushort[indexCount];
-                Buffer.BlockCopy(data, pos, face.Indices, 0, indexCount * sizeof(ushort));
-                pos += indexCount * sizeof(ushort);
+                Buffer.BlockCopy(data, pos, face.Indices, 0, indexCount * 2);
+                pos += indexCount * 2;
 
                 mesh.Faces[i] = face;
             }
@@ -185,21 +184,82 @@ namespace Simian
         }
     }
 
-    #endregion Rendering Mesh Classes
-
-    #region Physics Hull Classes
-
-    public abstract class PhysicsHull
-    {
-    }
-
-    public class PhysicsMesh : PhysicsHull
+    public class BasicMesh
     {
         public Vector3[] Vertices;
         public ushort[] Indices;
+        public float Volume;
+
+        public byte[] Serialize()
+        {
+            int length = 4; // Volume
+
+            length += 2; // Vertex count
+            length += Vertices.Length * 12;
+            length += 2; // Index count
+            length += Indices.Length * 2;
+
+            byte[] data = new byte[length];
+            int pos = 0;
+
+            Utils.FloatToBytes(Volume, data, pos);
+            pos += 4;
+
+            Utils.UInt16ToBytes((ushort)Vertices.Length, data, pos);
+            pos += 2;
+
+            for (int j = 0; j < Vertices.Length; j++)
+            {
+                Vector3 v = Vertices[j];
+
+                v.ToBytes(data, pos);
+                pos += 12;
+            }
+
+            Utils.UInt16ToBytes((ushort)Indices.Length, data, pos);
+            pos += 2;
+
+            for (int j = 0; j < Indices.Length; j++)
+            {
+                Utils.UInt16ToBytes(Indices[j], data, pos);
+                pos += 2;
+            }
+
+            return data;
+        }
+
+        public static BasicMesh Deserialize(byte[] data)
+        {
+            int pos = 0;
+
+            BasicMesh mesh = new BasicMesh();
+            mesh.Volume = Utils.BytesToFloat(data, pos);
+            pos += 4;
+
+            ushort vertexCount = Utils.BytesToUInt16(data, pos);
+            pos += 2;
+
+            mesh.Vertices = new Vector3[vertexCount];
+            for (int j = 0; j < vertexCount; j++)
+            {
+                Vector3 v = new Vector3(data, pos);
+                pos += 12;
+
+                mesh.Vertices[j] = v;
+            }
+
+            ushort indexCount = Utils.BytesToUInt16(data, pos);
+            pos += 2;
+
+            mesh.Indices = new ushort[indexCount];
+            Buffer.BlockCopy(data, pos, mesh.Indices, 0, indexCount * 2);
+            pos += indexCount * 2;
+
+            return mesh;
+        }
     }
 
-    public class PhysicsConvexHull : PhysicsHull
+    public class ConvexHullSet
     {
         public class HullPart
         {
@@ -208,14 +268,98 @@ namespace Simian
         }
 
         public HullPart[] Parts;
+        public float Volume;
+
+        public byte[] Serialize()
+        {
+            int length = 4; // Volume
+            length += 2; // Hull count
+
+            for (int i = 0; i < Parts.Length; i++)
+            {
+                length += 12; // Offset
+                length += 2; // Vertex count
+                length += Parts[i].Vertices.Length * 12;
+            }
+
+            byte[] data = new byte[length];
+            int pos = 0;
+
+            Utils.FloatToBytes(Volume, data, pos);
+            pos += 4;
+
+            Utils.UInt16ToBytes((ushort)Parts.Length, data, pos);
+            pos += 2;
+
+            for (int i = 0; i < Parts.Length; i++)
+            {
+                HullPart part = Parts[i];
+
+                part.Offset.ToBytes(data, pos);
+                pos += 12;
+
+                Utils.UInt16ToBytes((ushort)part.Vertices.Length, data, pos);
+                pos += 2;
+
+                for (int j = 0; j < part.Vertices.Length; j++)
+                {
+                    Vector3 v = part.Vertices[j];
+
+                    v.ToBytes(data, pos);
+                    pos += 12;
+                }
+            }
+
+            return data;
+        }
+
+        public static ConvexHullSet Deserialize(byte[] data)
+        {
+            int pos = 0;
+
+            ConvexHullSet hullSet = new ConvexHullSet();
+            hullSet.Volume = Utils.BytesToFloat(data, pos);
+            pos += 4;
+
+            ushort partCount = Utils.BytesToUInt16(data, pos);
+            pos += 2;
+
+            hullSet.Parts = new HullPart[partCount];
+
+            for (int i = 0; i < partCount; i++)
+            {
+                HullPart part = new HullPart();
+
+                part.Offset = new Vector3(data, pos);
+                pos += 12;
+
+                ushort vertexCount = Utils.BytesToUInt16(data, pos);
+                pos += 2;
+
+                part.Vertices = new Vector3[vertexCount];
+                for (int j = 0; j < vertexCount; j++)
+                {
+                    Vector3 v = new Vector3(data, pos);
+                    pos += 12;
+
+                    part.Vertices[j] = v;
+                }
+
+                hullSet.Parts[i] = part;
+            }
+
+            return hullSet;
+        }
     }
 
-    #endregion Physics Hull Classes
+    #endregion Mesh / Convex Hull Classes
 
     [ApplicationModule("MeshCache")]
     public class MeshCache : IApplicationModule
     {
-        public const string MESH_BASE_CONTENT_TYPE = "application/x-simian-mesh";
+        public const string RENDER_MESH_BASE_CONTENT_TYPE = "application/x-simian-rendermesh";
+        public const string BASIC_MESH_BASE_CONTENT_TYPE = "application/x-simian-basicmesh";
+        public const string CONVEX_HULL_BASE_CONTENT_TYPE = "application/x-simian-convexhull";
 
         private static readonly string[] LOD_NAMES =
         {
@@ -246,10 +390,56 @@ namespace Simian
         {
         }
 
+        public bool TryGetBasicMesh(ulong meshKey, DetailLevel lod, out BasicMesh mesh)
+        {
+            UUID dataID = new UUID(meshKey);
+            string contentType = BASIC_MESH_BASE_CONTENT_TYPE + "-" + LOD_NAMES[(int)lod];
+
+            mesh = null;
+
+            byte[] meshData;
+            if (m_dataStore.TryGetAsset(dataID, contentType, out meshData))
+            {
+                try
+                {
+                    mesh = BasicMesh.Deserialize(meshData);
+                }
+                catch (Exception ex)
+                {
+                    m_log.WarnFormat("Failed to deserialize basic mesh {0} ({1}): {2}", dataID, contentType, ex.Message);
+                }
+            }
+
+            return (mesh != null);
+        }
+
+        public bool TryGetConvexHullSet(ulong meshKey, DetailLevel lod, out ConvexHullSet hullSet)
+        {
+            UUID dataID = new UUID(meshKey);
+            string contentType = CONVEX_HULL_BASE_CONTENT_TYPE + "-" + LOD_NAMES[(int)lod];
+
+            hullSet = null;
+
+            byte[] hullData;
+            if (m_dataStore.TryGetAsset(dataID, contentType, out hullData))
+            {
+                try
+                {
+                    hullSet = ConvexHullSet.Deserialize(hullData);
+                }
+                catch (Exception ex)
+                {
+                    m_log.WarnFormat("Failed to deserialize convex hull set {0} ({1}): {2}", dataID, contentType, ex.Message);
+                }
+            }
+
+            return (hullSet != null);
+        }
+
         public bool TryGetRenderingMesh(ulong meshKey, DetailLevel lod, out RenderingMesh mesh)
         {
             UUID dataID = new UUID(meshKey);
-            string contentType = MESH_BASE_CONTENT_TYPE + "-" + LOD_NAMES[(int)lod];
+            string contentType = RENDER_MESH_BASE_CONTENT_TYPE + "-" + LOD_NAMES[(int)lod];
 
             mesh = null;
 
@@ -262,17 +452,35 @@ namespace Simian
                 }
                 catch (Exception ex)
                 {
-                    m_log.WarnFormat("Failed to deserialize mesh {0} ({1}): {2}", dataID, contentType, ex.Message);
+                    m_log.WarnFormat("Failed to deserialize rendering mesh {0} ({1}): {2}", dataID, contentType, ex.Message);
                 }
             }
 
             return (mesh != null);
         }
 
+        public void StoreBasicMesh(ulong meshKey, DetailLevel lod, BasicMesh mesh)
+        {
+            UUID dataID = new UUID(meshKey);
+            string contentType = BASIC_MESH_BASE_CONTENT_TYPE + "-" + lod.ToString().ToLower();
+            byte[] data = mesh.Serialize();
+
+            m_dataStore.AddOrUpdateAsset(dataID, contentType, data, true);
+        }
+
+        public void StoreConvexHullSet(ulong meshKey, DetailLevel lod, ConvexHullSet hullSet)
+        {
+            UUID dataID = new UUID(meshKey);
+            string contentType = CONVEX_HULL_BASE_CONTENT_TYPE + "-" + lod.ToString().ToLower();
+            byte[] data = hullSet.Serialize();
+
+            m_dataStore.AddOrUpdateAsset(dataID, contentType, data, true);
+        }
+
         public void StoreRenderingMesh(ulong meshKey, DetailLevel lod, RenderingMesh mesh)
         {
             UUID dataID = new UUID(meshKey);
-            string contentType = MESH_BASE_CONTENT_TYPE + "-" + lod.ToString().ToLower();
+            string contentType = RENDER_MESH_BASE_CONTENT_TYPE + "-" + lod.ToString().ToLower();
             byte[] data = mesh.Serialize();
 
             m_dataStore.AddOrUpdateAsset(dataID, contentType, data, true);
