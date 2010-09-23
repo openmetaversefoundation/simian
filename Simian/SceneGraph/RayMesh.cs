@@ -34,7 +34,7 @@ namespace Simian
 {
     public static class RayMesh
     {
-        public static bool CollisionTest(Ray ray, IPhysical obj, PhysicsMesh mesh, out float dist)
+        public static bool CollisionTest(Ray ray, IPhysical obj, BasicMesh mesh, out float dist)
         {
             Vector3 start = new Vector3(ray.X, ray.Y, ray.Z);
             Vector3 direction = new Vector3(ray.I, ray.J, ray.K);

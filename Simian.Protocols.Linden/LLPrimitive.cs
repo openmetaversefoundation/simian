@@ -485,7 +485,7 @@ namespace Simian.Protocols.Linden
         public float GetMass()
         {
             if (m_volume == 0f)
-                UpdateVolume(null);
+                UpdateVolume();
 
             return m_volume * GetDensity();
         }
@@ -528,7 +528,7 @@ namespace Simian.Protocols.Linden
             //        return PhysicsType.Cylinder;
             //}
 
-            return PhysicsType.Mesh;
+            return PhysicsType.ConvexHull;
         }
 
         public ulong GetPhysicsKey()
@@ -567,15 +567,20 @@ namespace Simian.Protocols.Linden
             return hash;
         }
 
-        public PhysicsHull GetPhysicsHull()
+        public BasicMesh GetBasicMesh()
         {
-            PhysicsHull hull = m_mesher.GetPhysicsMesh(this);
+            BasicMesh mesh = m_mesher.GetBasicMesh(this);
+            if (mesh != null)
+                m_volume = mesh.Volume * Prim.Scale.X * Prim.Scale.Y * Prim.Scale.Z;
+            return mesh;
+        }
 
-            // Update the volume since we have a PhysicsProxy on hand
-            if (m_volume == 0f)
-                UpdateVolume(hull);
-
-            return hull;
+        public ConvexHullSet GetConvexHulls()
+        {
+            ConvexHullSet hullSet = m_mesher.GetConvexHulls(this);
+            if (hullSet != null)
+                m_volume = hullSet.Volume * Prim.Scale.X * Prim.Scale.Y * Prim.Scale.Z;
+            return hullSet;
         }
 
         #endregion IPhysical Methods
@@ -1114,7 +1119,7 @@ namespace Simian.Protocols.Linden
 
         #endregion LLPrimitive Methods
 
-        private void UpdateVolume(PhysicsHull hull)
+        private void UpdateVolume()
         {
             PhysicsType type = GetPhysicsType();
             Vector3 scale = Scale;
@@ -1130,17 +1135,12 @@ namespace Simian.Protocols.Linden
                 case PhysicsType.Cylinder:
                     m_volume = Utils.PI * scale.X * scale.Y * scale.Z;
                     break;
-                case PhysicsType.Mesh:
-                    if (hull != null)
-                        Util.GetMeshVolume((PhysicsMesh)hull, scale);
-                    else
-                        m_volume = scale.X * scale.Y * scale.Z;
-                    break;
                 case PhysicsType.ConvexHull:
-                    // FIXME: Need to be able to build a convex hull from the point cloud to calculate 
-                    // the volume
-                    if (hull == null) hull = GetPhysicsHull();
-                    m_volume = scale.X * scale.Y * scale.Z;
+                    ConvexHullSet hullSet = m_mesher.GetConvexHulls(this);
+                    if (hullSet != null)
+                        m_volume = hullSet.Volume;
+                    else
+                        m_volume = scale.X * scale.Y * Scale.Z;
                     break;
                 default:
                     m_log.Warn("LLPrimitive has an unhandled physics proxy type: " + type);

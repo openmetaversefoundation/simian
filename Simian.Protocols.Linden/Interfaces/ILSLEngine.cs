@@ -182,20 +182,5 @@ namespace Simian.Protocols.Linden
 
         bool PostScriptEvent(EventParams parms);
         bool PostObjectEvent(UUID hostObjectID, string eventName, object[] eventParams, DetectParams[] detectParams);
-
-        // FIXME: None of these should be API methods. Script engines should handle them internally
-        void SetTimerEvent(UUID scriptID, double seconds);
-        DetectParams GetDetectParams(UUID scriptID, int detectIndex);
-        void SetStartParameter(UUID scriptID, int startParam);
-        int GetStartParameter(UUID scriptID);
-        void SetScriptMinEventDelay(UUID scriptID, double minDelay);
-        void ApiResetScript(UUID scriptID);
-        int AddListener(UUID scriptID, UUID hostObjectID, int channel, string name, UUID keyID, string message);
-        void RemoveListener(UUID scriptID, int handle);
-        void RemoveListeners(UUID scriptID);
-        void SetListenerState(UUID scriptID, int handle, bool enabled);
-        void SensorOnce(UUID scriptID, UUID hostObjectID, string name, UUID keyID, int type, double range, double arc);
-        void SensorRepeat(UUID scriptID, UUID hostObjectID, string name, UUID keyID, int type, double range, double arc, double rate);
-        void SensorRemove(UUID scriptID);
     }
 }

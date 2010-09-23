@@ -33,20 +33,27 @@ using System.IO;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Rendering;
+using ConvexDecompositionDotNet;
+
+using OpenMetaverseMesh = OpenMetaverse.Rendering.SimpleMesh;
 
 namespace Simian.Protocols.Linden
 {
     [SceneModule("PrimMesher")]
     public class PrimMesher : ISceneModule, IPrimMesher
     {
+        private const DetailLevel BASIC_MESH_LOD = DetailLevel.High;
+
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
 
         private IAssetClient m_assetClient;
         private IRendering m_renderer;
+        private MeshCache m_meshCache;
 
         public void Start(IScene scene)
         {
             m_assetClient = scene.Simian.GetAppModule<IAssetClient>();
+            m_meshCache = scene.Simian.GetAppModule<MeshCache>();
 
             List<string> rendererNames = RenderingLoader.ListRenderers(Util.ExecutingDirectory());
             if (rendererNames.Count == 0)
@@ -64,45 +71,137 @@ namespace Simian.Protocols.Linden
         {
         }
 
-        public PhysicsMesh GetPhysicsMesh(LLPrimitive prim)
+        public BasicMesh GetBasicMesh(LLPrimitive prim)
         {
+            BasicMesh mesh;
+            OpenMetaverseMesh omvMesh = null;
+            ulong physicsKey = prim.GetPhysicsKey();
+
+            // Try a cache lookup first
+            if (m_meshCache != null && m_meshCache.TryGetBasicMesh(physicsKey, BASIC_MESH_LOD, out mesh))
+                return mesh;
+
+            // Can't go any further without a prim renderer
             if (m_renderer == null)
                 return null;
 
-            SimpleMesh simpleMesh = null;
-
             if (prim.Prim.Sculpt != null && prim.Prim.Sculpt.SculptTexture != UUID.Zero)
             {
+                // Sculpty meshing
                 Bitmap sculptTexture = GetSculptMap(prim.Prim.Sculpt.SculptTexture);
                 if (sculptTexture != null)
-                    simpleMesh = m_renderer.GenerateSimpleSculptMesh(prim.Prim, sculptTexture, OpenMetaverse.Rendering.DetailLevel.Low);
+                    omvMesh = m_renderer.GenerateSimpleSculptMesh(prim.Prim, sculptTexture, OpenMetaverse.Rendering.DetailLevel.Low);
             }
             else
             {
-                simpleMesh = m_renderer.GenerateSimpleMesh(prim.Prim, OpenMetaverse.Rendering.DetailLevel.Medium);
+                // Basic prim meshing
+                omvMesh = m_renderer.GenerateSimpleMesh(prim.Prim, OpenMetaverse.Rendering.DetailLevel.Medium);
             }
 
-            if (simpleMesh != null)
-            {
-                PhysicsMesh mesh = new PhysicsMesh();
-                mesh.Vertices = new Vector3[simpleMesh.Vertices.Count];
-                for (int i = 0; i < simpleMesh.Vertices.Count; i++)
-                    mesh.Vertices[i] = simpleMesh.Vertices[i].Position;
-                mesh.Indices = simpleMesh.Indices.ToArray();
-
-                return mesh;
-            }
-            else
-            {
+            if (omvMesh == null)
                 return null;
+
+#if DEBUG
+            for (int i = 0; i < omvMesh.Indices.Count; i++)
+                System.Diagnostics.Debug.Assert(omvMesh.Indices[i] < omvMesh.Vertices.Count, "Mesh index is out of range");
+#endif
+
+            // Convert the OpenMetaverse.Rendering mesh to a BasicMesh
+            mesh = new BasicMesh();
+            mesh.Vertices = new Vector3[omvMesh.Vertices.Count];
+            for (int i = 0; i < omvMesh.Vertices.Count; i++)
+                mesh.Vertices[i] = omvMesh.Vertices[i].Position;
+            mesh.Indices = omvMesh.Indices.ToArray();
+
+            mesh.Volume = Util.GetMeshVolume(mesh, Vector3.One);
+
+            // Store the result in the mesh cache, if we have one
+            if (m_meshCache != null)
+                m_meshCache.StoreBasicMesh(physicsKey, BASIC_MESH_LOD, mesh);
+
+            return mesh;
+        }
+
+        public ConvexHullSet GetConvexHulls(LLPrimitive prim)
+        {
+            ConvexHullSet hullSet;
+            ulong physicsKey = prim.GetPhysicsKey();
+
+            // Try a cache lookup first
+            if (m_meshCache != null && m_meshCache.TryGetConvexHullSet(physicsKey, BASIC_MESH_LOD, out hullSet))
+                return hullSet;
+
+            // Get a mesh and convert it to a set of convex hulls
+            BasicMesh mesh = GetBasicMesh(prim);
+            if (mesh == null)
+                return null;
+
+            #region Convex Decomposition
+
+            List<float3> vertices = new List<float3>(mesh.Vertices.Length);
+            for (int i = 0; i < mesh.Vertices.Length; i++)
+            {
+                Vector3 pos = mesh.Vertices[i];
+                vertices.Add(new float3(pos.X, pos.Y, pos.Z));
             }
+            List<int> indices = new List<int>(mesh.Indices.Length);
+            for (int i = 0; i < mesh.Indices.Length; i++)
+                indices.Add(mesh.Indices[i]);
+            List<ConvexResult> results = new List<ConvexResult>();
+            ConvexDecompositionCallback cb = delegate(ConvexResult cr)
+            {
+                results.Add(cr);
+            };
+            ConvexBuilder builder = new ConvexBuilder(cb);
+            builder.process(new DecompDesc { mCallback = cb, mVertices = vertices, mIndices = indices });
+
+            #endregion Convex Decomposition
+
+            if (results.Count == 0)
+                return null;
+
+            #region Conversion to ConvexHullSet
+
+            hullSet = new ConvexHullSet();
+            hullSet.Volume = mesh.Volume;
+            hullSet.Parts = new ConvexHullSet.HullPart[results.Count];
+            for (int i = 0; i < results.Count; i++)
+            {
+                ConvexResult result = results[i];
+
+                Vector3[] v3Vertices = new Vector3[result.HullVertices.Count];
+                for (int j = 0; j < result.HullVertices.Count; j++)
+                {
+                    float3 pos = result.HullVertices[j];
+                    v3Vertices[j] = new Vector3(pos.x, pos.y, pos.z);
+                }
+
+                hullSet.Parts[i] = new ConvexHullSet.HullPart { Offset = Vector3.Zero, Vertices = v3Vertices };
+            }
+
+            #endregion Conversion to ConvexHullSet
+
+            // Store the result in the mesh cache, if we have one
+            if (m_meshCache != null)
+                m_meshCache.StoreConvexHullSet(physicsKey, BASIC_MESH_LOD, hullSet);
+
+            return hullSet;
         }
 
         public RenderingMesh GetRenderingMesh(LLPrimitive prim, DetailLevel lod)
         {
+            RenderingMesh mesh;
+            ulong physicsKey = prim.GetPhysicsKey();
+
+            // Try a cache lookup first
+            if (m_meshCache != null && m_meshCache.TryGetRenderingMesh(physicsKey, lod, out mesh))
+                return mesh;
+
+            // Can't go any further without a prim renderer
             if (m_renderer == null)
                 return null;
 
+            // Convert our DetailLevel to the OpenMetaverse.Rendering DetailLevel
             OpenMetaverse.Rendering.DetailLevel detailLevel;
             switch (lod)
             {
@@ -125,18 +224,22 @@ namespace Simian.Protocols.Linden
 
             if (prim.Prim.Sculpt != null && prim.Prim.Sculpt.SculptTexture != UUID.Zero)
             {
+                // Sculpty meshing
                 Bitmap sculptTexture = GetSculptMap(prim.Prim.Sculpt.SculptTexture);
                 if (sculptTexture != null)
                     facetedMesh = m_renderer.GenerateFacetedSculptMesh(prim.Prim, sculptTexture, detailLevel);
             }
             else
             {
+                // Basic prim meshing
                 facetedMesh = m_renderer.GenerateFacetedMesh(prim.Prim, detailLevel);
             }
 
             if (facetedMesh != null)
             {
-                RenderingMesh mesh = new RenderingMesh();
+                #region FacetedMesh to RenderingMesh Conversion
+
+                mesh = new RenderingMesh();
                 mesh.Faces = new RenderingMesh.Face[facetedMesh.Faces.Count];
                 for (int i = 0; i < facetedMesh.Faces.Count; i++)
                 {
@@ -152,6 +255,12 @@ namespace Simian.Protocols.Linden
 
                     mesh.Faces[i] = new RenderingMesh.Face { Vertices = vertices, Indices = indices };
                 }
+
+                #endregion FacetedMesh to RenderingMesh Conversion
+
+                // Store the result in the mesh cache, if we have one
+                if (m_meshCache != null)
+                    m_meshCache.StoreRenderingMesh(physicsKey, lod, mesh);
 
                 return mesh;
             }

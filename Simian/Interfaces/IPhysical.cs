@@ -77,12 +77,15 @@ namespace Simian
         ulong GetPhysicsKey();
 
         /// <summary>
-        /// Creates a physical proxy for this entity using either a mesh or a 
-        /// convex hull representation
+        /// Creates a basic mesh representation for this entity
         /// </summary>
-        /// <returns>A PhysicsMesh or PhysicsConvexHull for this entity. May
-        /// return null if this entity does not use a mesh or convex hull 
-        /// physics type</returns>
-        PhysicsHull GetPhysicsHull();
+        /// <returns>A BasicMesh for this entity</returns>
+        BasicMesh GetBasicMesh();
+
+        /// <summary>
+        /// Creates a series of convex hulls representing this entity
+        /// </summary>
+        /// <returns>A ConvexHull for this entity</returns>
+        ConvexHullSet GetConvexHulls();
     }
 }

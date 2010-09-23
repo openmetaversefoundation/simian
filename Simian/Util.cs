@@ -296,7 +296,7 @@ namespace Simian
         /// <param name="mesh">Mesh data</param>
         /// <param name="scale">Object scale</param>
         /// <returns>Approximate volume of the mesh</returns>
-        public static float GetMeshVolume(PhysicsMesh mesh, Vector3 scale)
+        public static float GetMeshVolume(BasicMesh mesh, Vector3 scale)
         {
             const float OO_SIX = 1f / 6f;
 
