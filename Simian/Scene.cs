@@ -48,6 +48,7 @@ namespace Simian
     {
         #region Events
 
+        public event EventHandler OnSceneModulesLoaded;
         public event EventHandler<EntityAddOrUpdateArgs> OnEntityAddOrUpdate;
         public event EventHandler<EntityArgs> OnEntityRemove;
         public event EventHandler<EntitySignificantMovementArgs> OnEntitySignificantMovement;
@@ -204,6 +205,11 @@ namespace Simian
                 if (module is IScriptApi)
                     RegisterScriptingApi((IScriptApi)module);
             }
+
+            // Fire the scene modules loaded event
+            EventHandler callback = OnSceneModulesLoaded;
+            if (callback != null)
+                callback(this, new EventArgs());
 
             #endregion Scene Module Loading
 

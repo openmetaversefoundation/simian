@@ -33,7 +33,6 @@ using System.IO;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Rendering;
-using ConvexDecompositionDotNet;
 
 using OpenMetaverseMesh = OpenMetaverse.Rendering.SimpleMesh;
 
@@ -131,61 +130,8 @@ namespace Simian.Protocols.Linden
             if (m_meshCache != null && m_meshCache.TryGetConvexHullSet(physicsKey, BASIC_MESH_LOD, out hullSet))
                 return hullSet;
 
-            // Get a mesh and convert it to a set of convex hulls
-            BasicMesh mesh = GetBasicMesh(prim);
-            if (mesh == null)
-                return null;
-
-            #region Convex Decomposition
-
-            List<float3> vertices = new List<float3>(mesh.Vertices.Length);
-            for (int i = 0; i < mesh.Vertices.Length; i++)
-            {
-                Vector3 pos = mesh.Vertices[i];
-                vertices.Add(new float3(pos.X, pos.Y, pos.Z));
-            }
-            List<int> indices = new List<int>(mesh.Indices.Length);
-            for (int i = 0; i < mesh.Indices.Length; i++)
-                indices.Add(mesh.Indices[i]);
-            List<ConvexResult> results = new List<ConvexResult>();
-            ConvexDecompositionCallback cb = delegate(ConvexResult cr)
-            {
-                results.Add(cr);
-            };
-            ConvexBuilder builder = new ConvexBuilder(cb);
-            builder.process(new DecompDesc { mCallback = cb, mVertices = vertices, mIndices = indices });
-
-            #endregion Convex Decomposition
-
-            if (results.Count == 0)
-                return null;
-
-            #region Conversion to ConvexHullSet
-
-            hullSet = new ConvexHullSet();
-            hullSet.Volume = mesh.Volume;
-            hullSet.Parts = new ConvexHullSet.HullPart[results.Count];
-            for (int i = 0; i < results.Count; i++)
-            {
-                ConvexResult result = results[i];
-
-                Vector3[] v3Vertices = new Vector3[result.HullVertices.Count];
-                for (int j = 0; j < result.HullVertices.Count; j++)
-                {
-                    float3 pos = result.HullVertices[j];
-                    v3Vertices[j] = new Vector3(pos.x, pos.y, pos.z);
-                }
-
-                hullSet.Parts[i] = new ConvexHullSet.HullPart { Offset = Vector3.Zero, Vertices = v3Vertices };
-            }
-
-            #endregion Conversion to ConvexHullSet
-
-            // Store the result in the mesh cache, if we have one
-            if (m_meshCache != null)
-                m_meshCache.StoreConvexHullSet(physicsKey, BASIC_MESH_LOD, hullSet);
-
-            return hullSet;
+            // FIXME: Implement this
+            return null;
         }
 
         public RenderingMesh GetRenderingMesh(LLPrimitive prim, DetailLevel lod)
