@@ -65,7 +65,7 @@ namespace Simian.Protocols.Linden
                 // localization issues. This hack should be removed when we fix our build of Nini 
                 // to always parse with EnUsCulture
                 string primsPerSquareMeterStr = config.GetString("PrimsPerSquareMeter", DEFAULT_PRIMS_PER_SQM.ToString());
-                if (!Single.TryParse(primsPerSquareMeterStr, out m_primsPerSquareMeter))
+                if (!Single.TryParse(primsPerSquareMeterStr, System.Globalization.NumberStyles.Float, Utils.EnUsCulture.NumberFormat, out m_primsPerSquareMeter))
                     m_primsPerSquareMeter = DEFAULT_PRIMS_PER_SQM;
             }
 

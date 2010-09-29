@@ -138,17 +138,21 @@ namespace Simian
             #region Scene Module Whitelist Loading
 
             // Load the scene module whitelist
-            List<string> whitelist = new List<string>();
+            List<KeyValuePair<int, string>> whitelist = new List<KeyValuePair<int, string>>();
 
             IConfig config = m_configSource.Configs["SceneModules"];
             if (config != null)
             {
                 foreach (string key in config.GetKeys())
                 {
-                    if (config.GetBoolean(key))
-                        whitelist.Add(key);
+                    int runLevel = config.GetInt(key, -1);
+                    if (runLevel >= 0)
+                        whitelist.Add(new KeyValuePair<int, string>(runLevel, key));
                 }
             }
+
+            // Sort the list based on runlevel
+            whitelist.Sort(delegate(KeyValuePair<int, string> lhs, KeyValuePair<int, string> rhs) { return lhs.Key.CompareTo(rhs.Key); });
 
             #endregion Scene Module Whitelist Loading
 
@@ -176,8 +180,10 @@ namespace Simian
             }
 
             // Load modules in the order they appear in the whitelist
-            foreach (string whitelisted in whitelist)
+            foreach (KeyValuePair<int, string> kvp in whitelist)
             {
+                string whitelisted = kvp.Value;
+
                 Lazy<object, object> lazyExport;
                 if (exports.TryGetValue(whitelisted, out lazyExport))
                 {

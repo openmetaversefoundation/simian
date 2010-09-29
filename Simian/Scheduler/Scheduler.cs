@@ -97,7 +97,7 @@ namespace Simian
         public event EventHandler<WatchdogTimeoutArgs> OnWatchdogTimeout;
 
         private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
-        private Dictionary<int, ThreadWatchdogInfo> m_threads;
+        private Dictionary<int, ThreadWatchdogInfo> m_threads = new Dictionary<int, ThreadWatchdogInfo>();
         private System.Timers.Timer m_watchdogTimer;
 
         public FireAndForgetMethod FireAndForgetMethod { get; set; }
@@ -108,7 +108,6 @@ namespace Simian
 
         public bool Start(Simian simian)
         {
-            m_threads = new Dictionary<int, ThreadWatchdogInfo>();
             m_watchdogTimer = new System.Timers.Timer(WATCHDOG_INTERVAL_MS);
             m_watchdogTimer.AutoReset = false;
             m_watchdogTimer.Elapsed += WatchdogTimerElapsed;
@@ -121,6 +120,7 @@ namespace Simian
         {
             m_watchdogTimer.Stop();
             m_watchdogTimer.Close();
+            m_threads.Clear();
         }
 
         public Thread StartThread(ThreadStart start, string name, ThreadPriority priority, bool isBackground)
