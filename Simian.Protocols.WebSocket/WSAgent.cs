@@ -64,8 +64,12 @@ namespace Simian.Protocols.WebSocket
 
         /// <summary>Are we in the process of reading data or not</summary>
         public bool ReadingData;
+        /// <summary>True if the last received record is binary</summary>
+        public bool ReadingBinary;
         /// <summary>Holds the currently accumulated data</summary>
         public StringBuilder DataString;
+        /// <summary>If received data was binary, a binary form is here else null</summary>
+        public byte[] DataBinary;
 
         /// <summary>Holds the Environment.TickCount value of when the next OnQueueEmpty can be fired</summary>
         private int m_nextOnQueueEmpty = 1;
