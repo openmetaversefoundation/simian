@@ -82,7 +82,7 @@ namespace Simian.Renderer.Warp3D
             #region Camera
 
             warp_Vector pos = ConvertVector(viewport.Position);
-            pos.z -= 0.001f; // HACK
+            pos.z -= 0.001f; // Works around an issue with the Warp3D camera
             warp_Vector lookat = warp_Vector.add(ConvertVector(viewport.Position), ConvertVector(viewport.LookDirection));
 
             renderer.Scene.defaultCamera.setPos(pos);
@@ -238,9 +238,6 @@ namespace Simian.Renderer.Warp3D
         {
             const float MIN_SIZE = 2f;
 
-            //if (prim.Parent != null)
-            //    return;
-
             if (prim.Prim.PrimData.PCode != PCode.Prim)
                 return;
             if (prim.Scale.LengthSquared() < MIN_SIZE * MIN_SIZE)
@@ -249,7 +246,6 @@ namespace Simian.Renderer.Warp3D
             RenderingMesh renderMesh;
             DetailLevel lod = DetailLevel.Medium;
 
-            ulong meshKey = prim.GetPhysicsKey();
             renderMesh = primMesher.GetRenderingMesh(prim, lod);
 
             if (renderMesh == null)

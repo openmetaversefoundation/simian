@@ -33,7 +33,7 @@ namespace Simian.Protocols.Linden
     #region Enums
 
     /// <summary>
-    /// LSL event types
+    /// Bitmask for all of the possible events, or entry points into an LSL script
     /// </summary>
     [Flags]
     public enum LSLEventFlags : long

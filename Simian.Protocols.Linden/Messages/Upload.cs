@@ -35,7 +35,7 @@ using OpenMetaverse.Messages.Linden;
 
 namespace Simian.Protocols.Linden
 {
-   [SceneModule("Upload")]
+    [SceneModule("Upload")]
     public class Upload : ISceneModule
     {
         private const byte MEDIA_MASK = 0x01;
@@ -216,7 +216,7 @@ namespace Simian.Protocols.Linden
                         primFace.TextureID = face.ImageID;
                         primFace.Rotation = face.ImageRot;
                         primFace.MediaFlags = ((face.MediaFlags & MEDIA_MASK) != 0);
-                        
+
                         primFace.OffsetU = face.OffsetS;
                         primFace.OffsetV = face.OffsetT;
                         primFace.RepeatU = face.ScaleS;

@@ -265,6 +265,7 @@ namespace Simian
         {
             public Vector3 Offset;
             public Vector3[] Vertices;
+            public int[] Indices;
         }
 
         public HullPart[] Parts;
@@ -280,6 +281,8 @@ namespace Simian
                 length += 12; // Offset
                 length += 2; // Vertex count
                 length += Parts[i].Vertices.Length * 12;
+                length += 2; // Triangle count
+                length += Parts[i].Indices.Length * 2;
             }
 
             byte[] data = new byte[length];
@@ -307,6 +310,17 @@ namespace Simian
 
                     v.ToBytes(data, pos);
                     pos += 12;
+                }
+
+                Utils.UInt16ToBytes((ushort)part.Indices.Length, data, pos);
+                pos += 2;
+
+                for (int j = 0; j < part.Indices.Length; j++)
+                {
+                    ushort index = (ushort)part.Indices[j];
+
+                    Utils.UInt16ToBytes(index, data, pos);
+                    pos += 2;
                 }
             }
 
@@ -343,6 +357,18 @@ namespace Simian
                     pos += 12;
 
                     part.Vertices[j] = v;
+                }
+
+                ushort indexCount = Utils.BytesToUInt16(data, pos);
+                pos += 2;
+
+                part.Indices = new int[indexCount];
+                for (int j = 0; j < indexCount; j++)
+                {
+                    ushort index = Utils.BytesToUInt16(data, pos);
+                    pos += 2;
+
+                    part.Indices[j] = index;
                 }
 
                 hullSet.Parts[i] = part;

@@ -425,8 +425,7 @@ namespace Simian.Protocols.Linden
                             SendRezAvatarRequest(agent, nearNeighbors[i], true);
                         }
                     }
-                },
-                null
+                }, null
             );
         }
 

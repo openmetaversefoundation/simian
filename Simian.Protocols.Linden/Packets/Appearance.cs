@@ -297,6 +297,7 @@ namespace Simian.Protocols.Linden.Packets
                 }
                 else
                 {
+                    // FIXME: Don't allow clouds! In this case we should assign a default appearance
                     m_log.Warn("User record does not contain an LLAppearance entry, appearance will not be set");
                 }
             }

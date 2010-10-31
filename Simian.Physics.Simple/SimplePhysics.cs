@@ -103,7 +103,7 @@ namespace Simian.Physics.Simple
             m_scene.OnEntityAddOrUpdate += EntityAddOrUpdateHandler;
             m_scene.OnEntityRemove += EntityRemoveHandler;
 
-            m_scheduler.StartThread(PhysicsLoop, "SimplePhysics", ThreadPriority.Normal, true);
+            m_scheduler.StartThread(PhysicsLoop, "SimplePhysics (" + m_scene.Name + ")", ThreadPriority.Normal, true);
         }
 
         public void Stop()

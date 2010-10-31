@@ -227,30 +227,24 @@ namespace Simian.Protocols.Linden
         {
             get
             {
-                Vector3 center = ScenePosition;
-                Vector3 halfExtent = Prim.Scale * 0.5f;
+                float fX, fY, fZ;
+                SceneRotation.GetEulerAngles(out fX, out fY, out fZ);
 
-                Vector3 min = center - halfExtent;
-                Vector3 max = center + halfExtent;
-
-                // Rotate the min and max
                 Matrix4 rotate = Matrix4.CreateFromQuaternion(SceneRotation);
-                min *= rotate;
-                max *= rotate;
 
-                // Find the new min/max
-                Vector3 newMin = new Vector3(
-                    Math.Min(min.X, max.X),
-                    Math.Min(min.Y, max.Y),
-                    Math.Min(min.Z, max.Z)
-                );
-                Vector3 newMax = new Vector3(
-                    Math.Max(min.X, max.X),
-                    Math.Max(min.Y, max.Y),
-                    Math.Max(min.Z, max.Z)
-                );
+                Vector3 center = ScenePosition * rotate;
+                Vector3 halfExtent = Scale * 0.5f;
 
-                return new AABB(newMin, newMax);
+                Vector3 dirX = rotate.AtAxis;
+                Vector3 dirY = rotate.LeftAxis;
+                Vector3 dirZ = rotate.UpAxis;
+
+                float rx = Math.Abs(dirX.X * halfExtent.X) + Math.Abs(dirY.X * halfExtent.Y) + Math.Abs(dirZ.X * halfExtent.Z);
+                float ry = Math.Abs(dirX.Y * halfExtent.X) + Math.Abs(dirY.Y * halfExtent.Y) + Math.Abs(dirZ.Y * halfExtent.Z);
+                float rz = Math.Abs(dirX.Z * halfExtent.X) + Math.Abs(dirY.Z * halfExtent.Y) + Math.Abs(dirZ.Z * halfExtent.Z);
+
+                Vector3 r = new Vector3(rx, ry, rz);
+                return new AABB(center - r, center + r);
             }
         }
         /// <summary>Link number, if this object is part of a linkset</summary>

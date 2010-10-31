@@ -49,6 +49,7 @@ namespace Simian.Scenes.LLScene
         public event SceneStartCallback OnSceneStart;
         public event SceneStopCallback OnSceneStop;
 
+        private IScheduler m_scheduler;
         private ISceneRenderer m_renderer;
         private IGridClient m_gridClient;
         private Dictionary<UUID, IScene> m_scenes = new Dictionary<UUID, IScene>();
@@ -56,6 +57,13 @@ namespace Simian.Scenes.LLScene
 
         public bool Start(Simian simian)
         {
+            m_scheduler = simian.GetAppModule<IScheduler>();
+            if (m_scheduler == null)
+            {
+                m_log.Error("LLSceneFactory requires an IScheduler");
+                return false;
+            }
+
             m_scenes = new Dictionary<UUID, IScene>();
 
             m_renderer = simian.GetAppModule<ISceneRenderer>();
@@ -100,7 +108,8 @@ namespace Simian.Scenes.LLScene
 
                     m_scenes[scene.ID] = scene;
 
-                    CreateMapTile(scene);
+                    // Create a map tile for this scene
+                    m_scheduler.FireAndForget(o => CreateMapTile((IScene)o), scene);
                 }
                 else
                 {

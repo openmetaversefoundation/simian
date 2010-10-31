@@ -122,7 +122,7 @@ namespace Simian
 
         private void EventHandler(object o)
         {
-            List<TValue> values = new List<TValue>();
+            Lazy<List<TValue>> values = new Lazy<List<TValue>>();
 
             lock (m_pendingEvents)
             {
@@ -144,7 +144,7 @@ namespace Simian
                     {
                         TValue value = (TValue)m_pendingEvents[0];
                         m_pendingEvents.RemoveAt(0);
-                        values.Add(value);
+                        values.Value.Add(value);
                     }
                 }
                 else if (m_flushEvents)
@@ -154,7 +154,7 @@ namespace Simian
                     {
                         TValue value = (TValue)m_pendingEvents[0];
                         m_pendingEvents.RemoveAt(0);
-                        values.Add(value);
+                        values.Value.Add(value);
                     }
                 }
                 else
@@ -166,10 +166,11 @@ namespace Simian
             }
 
             // Fire the event callbacks
-            if (m_callback != null)
+            if (values.IsValueCreated && m_callback != null)
             {
-                for (int i = 0; i < values.Count; i++)
-                    m_callback(values[i]);
+                var valueList = values.Value;
+                for (int i = 0; i < valueList.Count; i++)
+                    m_callback(valueList[i]);
             }
 
             if (m_timeEvents)

@@ -100,6 +100,7 @@ namespace Tests.Simian
         {
             const int HULLS = 13;
             const int MAX_VERTICES = 499;
+            const int MAX_INDICES = 1009;
 
             ConvexHullSet hullSet = new ConvexHullSet();
             hullSet.Volume = 42f;
@@ -113,6 +114,10 @@ namespace Tests.Simian
                 part.Vertices = new Vector3[m_rng.Next(MAX_VERTICES)];
                 for (int j = 0; j < part.Vertices.Length; j++)
                     part.Vertices[j] = RandomVector();
+
+                part.Indices = new int[m_rng.Next(MAX_INDICES)];
+                for (int j = 0; j < part.Indices.Length; j++)
+                    part.Indices[j] = m_rng.Next(part.Vertices.Length);
 
                 hullSet.Parts[i] = part;
             }
@@ -131,6 +136,7 @@ namespace Tests.Simian
 
                 Assert.AreEqual(part.Offset, part2.Offset);
                 Assert.AreEqual(part.Vertices.Length, part2.Vertices.Length);
+                Assert.AreEqual(part.Indices.Length, part2.Indices.Length);
 
                 for (int j = 0; j < part.Vertices.Length; j++)
                 {
@@ -138,6 +144,14 @@ namespace Tests.Simian
                     Vector3 v2 = part2.Vertices[j];
 
                     Assert.AreEqual(v, v2);
+                }
+
+                for (int j = 0; j < part.Indices.Length; j++)
+                {
+                    int idx = part.Indices[j];
+                    int idx2 = part2.Indices[j];
+
+                    Assert.AreEqual(idx, idx2);
                 }
             }
         }
